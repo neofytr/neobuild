@@ -1,4 +1,5 @@
 #include "neobuild.h"
+#include <unistd.h>
 #include "strix/header/strix.h"
 
 static inline void cleanup_arg_array(dyn_arr_t *arr)
@@ -65,6 +66,30 @@ const char *cmd_render(cmd_t *cmd)
 
     strix_free(strix);
     return (const char *)str;
+}
+
+const char *cmd_run(cmd_t *cmd, int *exit_code)
+{
+    // the write end of the in_pipe will be the stdout of the new process
+    // the read end of in_pipe will be utilized  by the parent process to read that stdout
+    int in_pipe[2];
+
+    // the read end of the out_pipe will be the stdin of the new process
+    // the write end of the out_pipe will be used by the parent process to send commands to that stdin
+    int out_pipe[2];
+
+    if (pipe(in_pipe) == -1)
+    {
+        perror("pipe");
+        return NULL;
+    }
+
+    if (pipe(out_pipe) == -1)
+    {
+        perror("pipe");
+    }
+
+    
 }
 
 cmd_t *cmd_create(shell_t shell)
