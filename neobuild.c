@@ -86,6 +86,78 @@ const char *cmd_render(cmd_t *cmd)
     return (const char *)str;
 }
 
+bool shell_wait(pid_t pid, int *status, int *code, bool should_print)
+{
+    // check for invalid arguments
+    if (pid < 0)
+    {
+        return false;
+    }
+
+    siginfo_t info;
+    // wait for the child process with the given pid to exit or stop
+    if (waitid(P_PID, (id_t)pid, &info, WEXITED | WSTOPPED) == -1)
+    {
+        if (should_print)
+            fprintf(stderr, "waitid on pid %d failed: %s\n", pid, strerror(errno));
+        return false;
+    }
+
+    // store the termination reason and status
+    if (code)
+    {
+        *code = info.si_code;
+    }
+
+    if (status)
+    {
+        *status = info.si_status;
+    }
+
+    // check how the child process terminated
+    switch (info.si_code)
+    {
+    case CLD_EXITED:
+        // child exited normally, store the exit status
+        if (should_print)
+            fprintf(stderr, "shell process %d exited normally with status %d\n", pid, info.si_status);
+        break;
+
+    case CLD_KILLED:
+        // child was killed by a signal
+        if (should_print)
+            fprintf(stderr, "shell process %d was killed by signal %d\n", pid, info.si_status);
+        break;
+
+    case CLD_DUMPED:
+        // child was killed by a signal and dumped core
+        if (should_print)
+            fprintf(stderr, "shell process %d was killed by signal %d (core dumped)\n", pid, info.si_status);
+        break;
+
+    case CLD_STOPPED:
+        // child was stopped by a signal
+        if (should_print)
+            fprintf(stderr, "shell process %d was stopped by signal %d\n", pid, info.si_status);
+        break;
+
+    case CLD_TRAPPED:
+        // traced child has trapped (e.g., during debugging)
+        if (should_print)
+            fprintf(stderr, "shell process %d was trapped by signal %d (traced child)\n", pid, info.si_status);
+        break;
+
+    default:
+        // unknown or unexpected termination reason
+        if (should_print)
+            fprintf(stderr, "shell process %d terminated in an unknown way (si_code: %d, si_status: %d)\n",
+                    pid, info.si_code, info.si_status);
+        return false;
+    }
+
+    return true;
+}
+
 #define READ_END 0
 #define WRITE_END 1
 
@@ -202,12 +274,12 @@ pid_t cmd_run_async(cmd_t *cmd)
     return -1;
 }
 
-bool cmd_run_sync(cmd_t *cmd, int *exit_code)
+bool cmd_run_sync(cmd_t *cmd, int *status, int *code, bool print_status_desc)
 {
     // the parent and child share the same open file descriptions and file descriptors
     // for stdin, stdout, and stderr
 
-    if (!cmd || !exit_code)
+    if (!cmd)
     {
         return false;
     }
@@ -291,7 +363,14 @@ bool cmd_run_sync(cmd_t *cmd, int *exit_code)
 
         // the shell will exit and the return code of the shell will be stored in exit_code
         // we will wait for the shell to return since this is cmd run synchronous
-        wait(exit_code);
+
+        if (!shell_wait(child, status, code, print_status_desc))
+        {
+            free((void *)command);
+            return false;
+        }
+
+        free((void *)command);
         return true;
     }
 

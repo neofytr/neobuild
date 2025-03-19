@@ -25,7 +25,8 @@ typedef struct
 cmd_t *cmd_create(shell_t shell);
 bool cmd_delete(cmd_t *cmd);
 pid_t cmd_run_async(cmd_t *cmd);
-bool cmd_run_sync(cmd_t *cmd, int *exit_code); // it's the responsibility of the user to free the char * ptr which contains the output of the command
+bool cmd_run_sync(cmd_t *cmd, int *status, int *code, bool print_status_desc);
+bool shell_wait(pid_t pid, int *status, int *code, bool should_print);
 bool cmd_append_null(cmd_t *cmd, ...);
 const char *cmd_render(cmd_t *cmd); // the responsibility of freeing the char * ptr returned by cmd_render after use is of the user; freeing is done using free(str)
 
