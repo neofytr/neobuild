@@ -34,5 +34,6 @@ int main()
     }
 
     printf("%d\n", max - min);
+    printf("%d %d\n", sub1, sub2);
     return EXIT_SUCCESS;
 }
