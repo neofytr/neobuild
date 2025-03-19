@@ -88,33 +88,15 @@ const char *cmd_render(cmd_t *cmd)
 
 const char *cmd_run(cmd_t *cmd, int *exit_code)
 {
-    // the write end of the in_pipe will be the stdout of the new process
-    // the read end of in_pipe will be utilized  by the parent process to read that stdout
-    int in_pipe[2];
-
-    // the read end of the out_pipe will be the stdin of the new process
-    // the write end of the out_pipe will be used by the parent process to send commands to that stdin
-    int out_pipe[2];
-
-    if (pipe(in_pipe) == -1)
-    {
-        perror("pipe");
-        return NULL;
-    }
-
-    if (pipe(out_pipe) == -1)
-    {
-        CLOSE_PIPE(in_pipe);
-        perror("pipe");
-    }
+    // the parent and child share the same open file descriptions and file descriptors
+    // for stdin, stdout, and stderr
 
     pid_t child = fork();
 
     if (child == -1)
     {
         // no child process is created
-        CLOSE_PIPE(in_pipe);
-        CLOSE_PIPE(out_pipe);
+        perror("fork");
         return NULL;
     }
     else if (!child)
