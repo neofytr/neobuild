@@ -22,6 +22,38 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+const char *cmd_render(cmd_t *cmd)
+{
+    if (!cmd && !cmd->args)
+    {
+        return NULL;
+    }
+
+    strix_t *strix = strix_create("");
+    if (!strix)
+    {
+        return NULL;
+    }
+
+    dyn_arr_t *arr = cmd->args;
+    int64_t last = arr->last_index;
+
+    for (int64_t index = 0; index <= last; index++)
+    {
+        strix_t *temp;
+        if (!dyn_arr_get(arr, index, &temp))
+        {
+            strix_free(strix);
+            return NULL;
+        }
+        if (!strix_concat(strix, temp))
+        {
+            strix_free(strix);
+            return NULL;
+        }
+    }
+}
+
 cmd_t *cmd_create(shell_t shell)
 {
     cmd_t *cmd = (cmd_t *)malloc(sizeof(cmd_t));
@@ -74,6 +106,13 @@ bool cmd_append_null(cmd_t *cmd, ...)
     {
         strix_t *arg_strix = strix_create(arg);
         if (!arg_strix)
+        {
+            cleanup_arg_array(cmd_args);
+            va_end(args);
+            return false;
+        }
+
+        if (!strix_append(arg_strix, " ")) // we append a space at the end of each of the arguments
         {
             cleanup_arg_array(cmd_args);
             va_end(args);
