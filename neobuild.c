@@ -24,12 +24,12 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
 
 const char *cmd_render(cmd_t *cmd)
 {
-    if (!cmd && !cmd->args)
+    if (!cmd || !cmd->args)
     {
         return NULL;
     }
 
-    strix_t *strix = strix_create("");
+    strix_t *strix = strix_create(" ");
     if (!strix)
     {
         return NULL;
@@ -46,6 +46,9 @@ const char *cmd_render(cmd_t *cmd)
             strix_free(strix);
             return NULL;
         }
+
+        printf(STRIX_FORMAT, STRIX_PRINT(temp));
+
         if (!strix_concat(strix, temp))
         {
             strix_free(strix);
@@ -61,7 +64,7 @@ const char *cmd_render(cmd_t *cmd)
     }
 
     strix_free(strix);
-    return NULL;
+    return (const char *)str;
 }
 
 cmd_t *cmd_create(shell_t shell)

@@ -5,8 +5,8 @@ int main()
 {
     cmd_t *cmd = cmd_create(BASH);
     cmd_append(cmd, "clang", "-Wall", "test.c", "-o", "test");
-    char *str = cmd_render(cmd);
+    const char *str = cmd_render(cmd);
     fprintf(stdout, "%s\n", str);
-    free(str);
+    free((char *)str);
     return EXIT_SUCCESS;
 }
