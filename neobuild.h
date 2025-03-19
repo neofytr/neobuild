@@ -19,10 +19,11 @@ typedef struct
     shell_t shell;
 } cmd_t;
 
-#define cmd_append(cmd_ptr, ...) cmd_append_null((cmd_ptr), __VA_ARGS__, NULL); // the string arguments should not be local variables of the function calling cmd_append
+#define cmd_append(cmd_ptr, ...) cmd_append_null((cmd_ptr), __VA_ARGS__, NULL);
 
 cmd_t *cmd_create(shell_t shell);
 bool cmd_delete(cmd_t *cmd);
+char *cmd_run(cmd_t *cmd, int *exit_code); // it's the responsibility of the user to free the char * ptr which contains the output of the command
 bool cmd_append_null(cmd_t *cmd, ...);
 const char *cmd_render(cmd_t *cmd); // the responsibility of freeing the char * ptr returned by cmd_render after use is of the user; freeing is done using free(str)
 
