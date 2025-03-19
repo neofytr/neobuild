@@ -20,7 +20,7 @@ typedef struct
 } cmd_t;
 
 #define cmd_append(cmd_ptr, ...) cmd_append_null((cmd_ptr), __VA_ARGS__, NULL);
-#define LABEL_WITH_SPACES(label) #label
+#define LABEL_WITH_SPACES(label) #label // for file names which contain whitespaces
 
 cmd_t *cmd_create(shell_t shell);
 bool cmd_delete(cmd_t *cmd);
