@@ -86,10 +86,32 @@ const char *cmd_render(cmd_t *cmd)
         close((pipe)[WRITE_END]); \
     } while (false)
 
-const char *cmd_run(cmd_t *cmd, int *exit_code)
+bool cmd_run(cmd_t *cmd, int *exit_code)
 {
     // the parent and child share the same open file descriptions and file descriptors
     // for stdin, stdout, and stderr
+
+    if (!cmd)
+    {
+        return false;
+    }
+
+    char *command = cmd_render(cmd);
+    if (!command)
+    {
+        return false;
+    }
+
+    size_t len = strlen(command);
+
+    if (write(STDIN_FILENO, command, len * sizeof(char)) < (ssize_t)len) // dont ever do a comparison between a signed and an unsigned type without explicit cast of the
+                                                                         // unsigned type to signed
+    {
+        free(command);
+        return NULL;
+    }
+
+    fprintf(stdout, "%s\n", command); // display the command being run by the newly created shell
 
     pid_t child = fork();
 
@@ -102,11 +124,22 @@ const char *cmd_run(cmd_t *cmd, int *exit_code)
     else if (!child)
     {
         // child process
+        if (cmd->shell == BASH)
+        {
+            if (execv("/bin/bash", NULL) == -1)
+            {
+                perror("execv");
+                free(command);
+                return NULL;
+            }
+        }
     }
     else
     {
         // parent process
-        wait(NULL);
+        wait(&exit_code);
+
+        return exit_code;
     }
 }
 
