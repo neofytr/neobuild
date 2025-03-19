@@ -52,6 +52,16 @@ const char *cmd_render(cmd_t *cmd)
             return NULL;
         }
     }
+
+    char *str = strix_to_cstr(strix);
+    if (!str)
+    {
+        strix_free(strix);
+        return NULL;
+    }
+
+    strix_free(strix);
+    return NULL;
 }
 
 cmd_t *cmd_create(shell_t shell)
