@@ -34,3 +34,7 @@ bool cmd_delete(cmd_t *cmd)
     return true;
 }
 
+bool cmd_append_null(cmd_t *cmd, ...)
+{
+    return true;
+}
