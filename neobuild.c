@@ -267,10 +267,12 @@ pid_t cmd_run_async(cmd_t *cmd)
     else
     {
         // parent process; immediately return the pid_t
+        free((void *)command);
         return child;
     }
 
     // would not be reached
+    free((void *)command);
     return -1;
 }
 
@@ -279,103 +281,14 @@ bool cmd_run_sync(cmd_t *cmd, int *status, int *code, bool print_status_desc)
     // the parent and child share the same open file descriptions and file descriptors
     // for stdin, stdout, and stderr
 
-    if (!cmd)
-    {
-        return false;
-    }
-
-    const char *command = cmd_render(cmd);
-    if (!command)
-    {
-        return false;
-    }
-
-    fprintf(stdout, "[CMD] %s\n", command); // display the command being run by the newly created shell
-
-    pid_t child = fork();
-
+    pid_t child = cmd_run_async(cmd);
     if (child == -1)
     {
-        // no child process is created
-        fprintf(stderr, "[ERROR] Child process could not be forked: %s\n", strerror(errno));
-        free((void *)command);
         return false;
     }
-    else if (!child)
-    {
-        // child process
-        switch (cmd->shell)
-        {
-        case BASH:
-        {
-            char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
-            // since the stdout of the child and parent refer to the same open file description
-            if (execv("/bin/bash", argv) == -1)
-            {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
-                free((void *)command);
-                return EXIT_FAILURE;
-            }
-        }
-        case SH:
-        {
-            char *argv[4] = {"/bin/sh", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
-            // since the stdout of the child and parent refer to the same open file description
-            if (execv("/bin/sh", argv) == -1)
-            {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
-                free((void *)command);
-                return EXIT_FAILURE;
-            }
-        }
-        case DASH:
-        {
-            char *argv[4] = {"/bin/dash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
-            // since the stdout of the child and parent refer to the same open file description
-            if (execv("/bin/dash", argv) == -1)
-            {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
-                free((void *)command);
-                return EXIT_FAILURE;
-            }
-        }
-        default:
-        {
-            // execute BASH in the default case
-            char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
-            // since the stdout of the child and parent refer to the same open file description
-            if (execv("/bin/bash", argv) == -1)
-            {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
-                free((void *)command);
-                return EXIT_FAILURE;
-            }
-        }
-        }
-    }
-    else
-    {
-        // parent process
 
-        // the shell will exit and the return code of the shell will be stored in exit_code
-        // we will wait for the shell to return since this is cmd run synchronous
-
-        if (!shell_wait(child, status, code, print_status_desc))
-        {
-            free((void *)command);
-            return false;
-        }
-
-        free((void *)command);
-        return true;
-    }
-
-    // would not be reached
-    return false;
+    shell_wait(child, status, code, print_status_desc);
+    return true;
 }
 
 #undef READ_END
