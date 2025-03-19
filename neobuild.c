@@ -96,19 +96,10 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
         return false;
     }
 
-    char *command = cmd_render(cmd);
+    const char *command = cmd_render(cmd);
     if (!command)
     {
         return false;
-    }
-
-    size_t len = strlen(command);
-
-    if (write(STDIN_FILENO, command, len * sizeof(char)) < (ssize_t)len) // dont ever do a comparison between a signed and an unsigned type without explicit cast of the
-                                                                         // unsigned type to signed
-    {
-        free(command);
-        return NULL;
     }
 
     fprintf(stdout, "%s\n", command); // display the command being run by the newly created shell
@@ -119,28 +110,76 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
     {
         // no child process is created
         perror("fork");
-        return NULL;
+        free((void *)command);
+        return false;
     }
     else if (!child)
     {
         // child process
-        if (cmd->shell == BASH)
+        switch (cmd->shell)
         {
-            if (execv("/bin/bash", NULL) == -1)
+        case BASH:
+        {
+            char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/bash", argv) == -1)
             {
                 perror("execv");
-                free(command);
-                return NULL;
+                free((void *)command);
+                return EXIT_FAILURE;
             }
+        }
+        case SH:
+        {
+            char *argv[4] = {"/bin/sh", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/sh", argv) == -1)
+            {
+                perror("execv");
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
+        case DASH:
+        {
+            char *argv[4] = {"/bin/dash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/dash", argv) == -1)
+            {
+                perror("execv");
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
+        default:
+        {
+            // execute BASH in the default case
+            char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/bash", argv) == -1)
+            {
+                perror("execv");
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
         }
     }
     else
     {
         // parent process
-        wait(&exit_code);
 
-        return exit_code;
+        // the shell will exit and the return code of the shell will be stored in exit_code
+        wait(exit_code);
+        return true;
     }
+
+    // would not be reached
+    return false;
 }
 
 #undef READ_END

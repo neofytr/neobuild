@@ -4,9 +4,8 @@
 int main()
 {
     cmd_t *cmd = cmd_create(BASH);
-    cmd_append(cmd, "clang", "-Wall", "test.c", "-o", "test");
-    const char *str = cmd_render(cmd);
-    fprintf(stdout, "%s\n", str);
-    free((char *)str);
+    cmd_append(cmd, "clang", "-Wall", "main.c", "-o", "main", "&& ./main");
+    int code;
+    cmd_run(cmd, &code);
     return EXIT_SUCCESS;
 }
