@@ -120,37 +120,37 @@ bool shell_wait(pid_t pid, int *status, int *code, bool should_print)
     case CLD_EXITED:
         // child exited normally, store the exit status
         if (should_print)
-            fprintf(stderr, "shell process %d exited normally with status %d\n", pid, info.si_status);
+            fprintf(stderr, "[CMD] shell process %d exited normally with status %d\n", pid, info.si_status);
         break;
 
     case CLD_KILLED:
         // child was killed by a signal
         if (should_print)
-            fprintf(stderr, "shell process %d was killed by signal %d\n", pid, info.si_status);
+            fprintf(stderr, "[ERROR] shell process %d was killed by signal %d\n", pid, info.si_status);
         break;
 
     case CLD_DUMPED:
         // child was killed by a signal and dumped core
         if (should_print)
-            fprintf(stderr, "shell process %d was killed by signal %d (core dumped)\n", pid, info.si_status);
+            fprintf(stderr, "[ERROR] shell process %d was killed by signal %d (core dumped)\n", pid, info.si_status);
         break;
 
     case CLD_STOPPED:
         // child was stopped by a signal
         if (should_print)
-            fprintf(stderr, "shell process %d was stopped by signal %d\n", pid, info.si_status);
+            fprintf(stderr, "[ERROR] shell process %d was stopped by signal %d\n", pid, info.si_status);
         break;
 
     case CLD_TRAPPED:
         // traced child has trapped (e.g., during debugging)
         if (should_print)
-            fprintf(stderr, "shell process %d was trapped by signal %d (traced child)\n", pid, info.si_status);
+            fprintf(stderr, "[ERROR] shell process %d was trapped by signal %d (traced child)\n", pid, info.si_status);
         break;
 
     default:
         // unknown or unexpected termination reason
         if (should_print)
-            fprintf(stderr, "shell process %d terminated in an unknown way (si_code: %d, si_status: %d)\n",
+            fprintf(stderr, "[ERROR] shell process %d terminated in an unknown way (si_code: %d, si_status: %d)\n",
                     pid, info.si_code, info.si_status);
         return false;
     }
