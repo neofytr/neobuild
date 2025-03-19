@@ -1,6 +1,14 @@
 #include "neobuild.h"
-#include <unistd.h>
 #include "strix/header/strix.h"
+
+// for pipe
+#include <unistd.h>
+
+// for pid_t
+#include <sys/types.h>
+
+// for wait
+#include <sys/wait.h>
 
 static inline void cleanup_arg_array(dyn_arr_t *arr)
 {
@@ -68,6 +76,16 @@ const char *cmd_render(cmd_t *cmd)
     return (const char *)str;
 }
 
+#define READ_END 0
+#define WRITE_END 1
+
+#define CLOSE_PIPE(pipe)          \
+    do                            \
+    {                             \
+        close((pipe)[READ_END]);  \
+        close((pipe)[WRITE_END]); \
+    } while (false)
+
 const char *cmd_run(cmd_t *cmd, int *exit_code)
 {
     // the write end of the in_pipe will be the stdout of the new process
@@ -86,11 +104,32 @@ const char *cmd_run(cmd_t *cmd, int *exit_code)
 
     if (pipe(out_pipe) == -1)
     {
+        CLOSE_PIPE(in_pipe);
         perror("pipe");
     }
 
-    
+    pid_t child = fork();
+
+    if (child == -1)
+    {
+        // no child process is created
+        CLOSE_PIPE(in_pipe);
+        CLOSE_PIPE(out_pipe);
+        return NULL;
+    }
+    else if (!child)
+    {
+        // child process
+    }
+    else
+    {
+        // parent process
+        wait(NULL);
+    }
 }
+
+#undef READ_END
+#undef WRITE_END
 
 cmd_t *cmd_create(shell_t shell)
 {
