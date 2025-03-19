@@ -10,6 +10,12 @@
 // for wait
 #include <sys/wait.h>
 
+// for bool
+#include <stdbool.h>
+
+// for errno
+#include <errno.h>
+
 static inline void cleanup_arg_array(dyn_arr_t *arr)
 {
     for (int64_t index = 0; index <= (int64_t)(arr)->last_index; index++)
@@ -56,9 +62,13 @@ const char *cmd_render(cmd_t *cmd)
             return NULL;
         }
 
-        printf(STRIX_FORMAT, STRIX_PRINT(temp));
-
         if (!strix_concat(strix, temp))
+        {
+            strix_free(strix);
+            return NULL;
+        }
+
+        if (!strix_append(strix, " "))
         {
             strix_free(strix);
             return NULL;
@@ -102,14 +112,14 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
         return false;
     }
 
-    fprintf(stdout, "%s\n", command); // display the command being run by the newly created shell
+    fprintf(stdout, "[CMD] %s\n", command); // display the command being run by the newly created shell
 
     pid_t child = fork();
 
     if (child == -1)
     {
         // no child process is created
-        perror("fork");
+        fprintf(stderr, "[ERROR] Child process could not be forked: %s\n", strerror(errno));
         free((void *)command);
         return false;
     }
@@ -125,7 +135,7 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
-                perror("execv");
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -137,7 +147,7 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/sh", argv) == -1)
             {
-                perror("execv");
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -149,7 +159,7 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/dash", argv) == -1)
             {
-                perror("execv");
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -162,7 +172,7 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
-                perror("execv");
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -174,6 +184,7 @@ bool cmd_run(cmd_t *cmd, int *exit_code)
         // parent process
 
         // the shell will exit and the return code of the shell will be stored in exit_code
+        // we will wait for the shell to return since this is cmd run synchronous
         wait(exit_code);
         return true;
     }
@@ -237,13 +248,6 @@ bool cmd_append_null(cmd_t *cmd, ...)
     {
         strix_t *arg_strix = strix_create(arg);
         if (!arg_strix)
-        {
-            cleanup_arg_array(cmd_args);
-            va_end(args);
-            return false;
-        }
-
-        if (!strix_append(arg_strix, " ")) // we append a space at the end of each of the arguments
         {
             cleanup_arg_array(cmd_args);
             va_end(args);
