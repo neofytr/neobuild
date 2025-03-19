@@ -18,7 +18,8 @@ typedef struct
     shell_t shell;
 } cmd_t;
 
-cmd_t *create_cmd(shell_t shell);
+cmd_t *cmd_create(shell_t shell);
+bool cmd_delete(cmd_t *cmd);
 bool cmd_append(cmd_t *cmd, ...);
 
 #endif
