@@ -96,12 +96,118 @@ const char *cmd_render(cmd_t *cmd)
         close((pipe)[WRITE_END]); \
     } while (false)
 
-bool cmd_run(cmd_t *cmd, int *exit_code)
+/*
+ * This function runs a command asynchronously by forking a child process.
+ *
+ * - The child process will execute independently and will not be waited for within this function.
+ * - The parent must explicitly call waitpid(pid) later to retrieve the exit status.
+ * - If the parent process exits before the child, the child process will be reparented to init (PID 1),
+ *   which will eventually clean it up.
+ * - If the parent does not call waitpid(), the child remains in a "zombie" state after termination.
+ *   - A zombie process retains only its PID and exit status in the process table.
+ *   - It no longer executes or consumes memory, but it persists until the parent calls waitpid().
+ *   - If the parent itself terminates, init adopts the zombie process and clears it.
+ * - All process resources (memory, file descriptors, etc.) are freed upon child exit,
+ *   except for the exit status, which remains in the process table until reaped.
+ */
+pid_t cmd_run_async(cmd_t *cmd)
+{
+    // returns -1 if an error occurred
+
+    if (!cmd)
+    {
+        return -1;
+    }
+
+    const char *command = cmd_render(cmd);
+    if (!command)
+    {
+        return -1;
+    }
+
+    fprintf(stdout, "[CMD] %s\n", command); // display the command being run by the newly created shell
+
+    pid_t child = fork();
+
+    if (child == -1)
+    {
+        // no child process is created
+        fprintf(stderr, "[ERROR] Child process could not be forked: %s\n", strerror(errno));
+        free((void *)command);
+        return -1;
+    }
+    else if (!child)
+    {
+        // child process
+        switch (cmd->shell)
+        {
+        case BASH:
+        {
+            char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/bash", argv) == -1)
+            {
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
+        case SH:
+        {
+            char *argv[4] = {"/bin/sh", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/sh", argv) == -1)
+            {
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
+        case DASH:
+        {
+            char *argv[4] = {"/bin/dash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/dash", argv) == -1)
+            {
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
+        default:
+        {
+            // execute BASH in the default case
+            char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
+            // the output of the command will be displayed in the shell running the cmd_run function
+            // since the stdout of the child and parent refer to the same open file description
+            if (execv("/bin/bash", argv) == -1)
+            {
+                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                free((void *)command);
+                return EXIT_FAILURE;
+            }
+        }
+        }
+    }
+    else
+    {
+        // parent process; immediately return the pid_t
+        return child;
+    }
+
+    // would not be reached
+    return -1;
+}
+
+bool cmd_run_sync(cmd_t *cmd, int *exit_code)
 {
     // the parent and child share the same open file descriptions and file descriptors
     // for stdin, stdout, and stderr
 
-    if (!cmd)
+    if (!cmd || !exit_code)
     {
         return false;
     }
