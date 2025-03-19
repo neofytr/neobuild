@@ -37,7 +37,7 @@ bool cmd_delete(cmd_t *cmd)
 bool cmd_append_null(cmd_t *cmd, ...) // the string arguments should not be local variables of the function calling cmd_append
 {
     va_list args;
-    va_start(args, cmd); // the variadic arguments start after the parameter cmd
+    va_start(args, cmd); // the variadic arguments start after the parameter cmd; initialize the list with the last static arguments
 
     const char *arg = va_arg(args, const char *);
     while (arg)
@@ -51,6 +51,6 @@ bool cmd_append_null(cmd_t *cmd, ...) // the string arguments should not be loca
         arg = va_arg(args, const char *);
     }
 
-    va_end(args); // finished extracting all variadic arguments
+    va_end(args); // finished extracting all variadic arguments; cleanup
     return true;
 }
