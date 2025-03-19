@@ -1,0 +1,3 @@
+[submodule "strix"]
+	path = strix
+	url = https://github.com/neofytr/strix/
