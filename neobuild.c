@@ -1,4 +1,26 @@
 #include "neobuild.h"
+#include "strix/header/strix.h"
+
+static inline void cleanup_arg_array(dyn_arr_t *arr)
+{
+    for (int64_t index = 0; index <= (int64_t)(arr)->last_index; index++)
+    {
+        strix_t *temp;
+        if (dyn_arr_get((arr), index, &temp))
+        {
+            strix_free(temp);
+        }
+    }
+}
+
+#define APPEND_CLEANUP(arr)     \
+    do                          \
+    {                           \
+        strix_free(arg_strix);  \
+        cleanup_arg_array(arr); \
+        va_end(args);           \
+        return false;           \
+    } while (0)
 
 cmd_t *cmd_create(shell_t shell)
 {
@@ -8,8 +30,8 @@ cmd_t *cmd_create(shell_t shell)
         return NULL;
     }
 
-#define MIN_ARG_NUM 8
-    cmd->args = dyn_arr_create(MIN_ARG_NUM, sizeof(char *), NULL);
+#define MIN_ARG_NUM 16
+    cmd->args = dyn_arr_create(MIN_ARG_NUM, sizeof(strix_t *), NULL);
 #undef MIN_ARG_NUM
     if (!cmd->args)
     {
@@ -28,25 +50,39 @@ bool cmd_delete(cmd_t *cmd)
         return false;
     }
 
+    cleanup_arg_array(cmd->args);
+
     dyn_arr_free(cmd->args);
     free((void *)cmd);
 
     return true;
 }
 
-bool cmd_append_null(cmd_t *cmd, ...) // the string arguments should not be local variables of the function calling cmd_append
+bool cmd_append_null(cmd_t *cmd, ...)
 {
+    if (!cmd || !cmd->args)
+    {
+        return false;
+    }
+
     va_list args;
     va_start(args, cmd); // the variadic arguments start after the parameter cmd; initialize the list with the last static arguments
+    dyn_arr_t *cmd_args = cmd->args;
 
     const char *arg = va_arg(args, const char *);
     while (arg)
     {
-        if (!dyn_arr_append(cmd->args, &arg)) // the args list just contains the pointers to the memory locations of the argument strings; it doesn't create
-                                              // a copy of them; so, the string arguments should not go out of scope at least until the cmd oject supplied is not
-                                              // to be utilized anymore
+        strix_t *arg_strix = strix_create(arg);
+        if (!arg_strix)
         {
+            cleanup_arg_array(cmd_args);
+            va_end(args);
             return false;
+        }
+
+        if (!dyn_arr_append(cmd_args, &arg_strix))
+        {
+            APPEND_CLEANUP(cmd_args);
         }
         arg = va_arg(args, const char *);
     }
