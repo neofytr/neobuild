@@ -19,7 +19,7 @@ typedef struct
     shell_t shell;
 } cmd_t;
 
-#define cmd_append(cmd_ptr, ...) cmd_append_null((cmd_ptr), __VA_ARGS__, NULL);
+#define cmd_append(cmd_ptr, ...) cmd_append_null((cmd_ptr), __VA_ARGS__, NULL); // the string arguments should not be local variables of the function calling cmd_append
 
 cmd_t *cmd_create(shell_t shell);
 bool cmd_delete(cmd_t *cmd);
