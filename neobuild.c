@@ -29,7 +29,7 @@ const char *cmd_render(cmd_t *cmd)
         return NULL;
     }
 
-    strix_t *strix = strix_create(" ");
+    strix_t *strix = strix_create_empty();
     if (!strix)
     {
         return NULL;
