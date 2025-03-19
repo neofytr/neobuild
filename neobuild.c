@@ -6,7 +6,7 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
     for (int64_t index = 0; index <= (int64_t)(arr)->last_index; index++)
     {
         strix_t *temp;
-        if (dyn_arr_get((arr), index, &temp))
+        if (dyn_arr_get((arr), index, &temp)) // we will inevitably be leaking memory if dyn_arr_get fails for some index and that index is allocated
         {
             strix_free(temp);
         }
