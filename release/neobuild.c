@@ -34,9 +34,9 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
-const char *cmd_render(cmd_t *cmd)
+const char *neocmd_render(neocmd_t *neocmd)
 {
-    if (!cmd || !cmd->args)
+    if (!neocmd || !neocmd->args)
     {
         return NULL;
     }
@@ -47,7 +47,7 @@ const char *cmd_render(cmd_t *cmd)
         return NULL;
     }
 
-    dyn_arr_t *arr = cmd->args;
+    dyn_arr_t *arr = neocmd->args;
     int64_t last = arr->last_index;
 
     for (int64_t index = 0; index <= last; index++)
@@ -117,7 +117,7 @@ bool shell_wait(pid_t pid, int *status, int *code, bool should_print)
     case CLD_EXITED:
         // child exited normally, store the exit status
         if (should_print)
-            fprintf(stderr, "[CMD] shell process %d exited normally with status %d\n", pid, info.si_status);
+            fprintf(stderr, "[neocmd] shell process %d exited normally with status %d\n", pid, info.si_status);
         break;
 
     case CLD_KILLED:
@@ -179,22 +179,22 @@ bool shell_wait(pid_t pid, int *status, int *code, bool should_print)
  * - All process resources (memory, file descriptors, etc.) are freed upon child exit,
  *   except for the exit status, which remains in the process table until reaped.
  */
-pid_t cmd_run_async(cmd_t *cmd)
+pid_t neocmd_run_async(neocmd_t *neocmd)
 {
     // returns -1 if an error occurred
 
-    if (!cmd)
+    if (!neocmd)
     {
         return -1;
     }
 
-    const char *command = cmd_render(cmd);
+    const char *command = neocmd_render(neocmd);
     if (!command)
     {
         return -1;
     }
 
-    fprintf(stdout, "[CMD] %s\n", command); // display the command being run by the newly created shell
+    fprintf(stdout, "[neocmd] %s\n", command); // display the command being run by the newly created shell
 
     pid_t child = fork();
 
@@ -208,12 +208,12 @@ pid_t cmd_run_async(cmd_t *cmd)
     else if (!child)
     {
         // child process
-        switch (cmd->shell)
+        switch (neocmd->shell)
         {
         case BASH:
         {
             char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
+            // the output of the command will be displayed in the shell running the neocmd_run function
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
@@ -225,7 +225,7 @@ pid_t cmd_run_async(cmd_t *cmd)
         case SH:
         {
             char *argv[4] = {"/bin/sh", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
+            // the output of the command will be displayed in the shell running the neocmd_run function
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/sh", argv) == -1)
             {
@@ -237,7 +237,7 @@ pid_t cmd_run_async(cmd_t *cmd)
         case DASH:
         {
             char *argv[4] = {"/bin/dash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
+            // the output of the command will be displayed in the shell running the neocmd_run function
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/dash", argv) == -1)
             {
@@ -250,7 +250,7 @@ pid_t cmd_run_async(cmd_t *cmd)
         {
             // execute BASH in the default case
             char *argv[4] = {"/bin/bash", "-c", (char *)command, NULL}; // NULL marks the end of the argv array
-            // the output of the command will be displayed in the shell running the cmd_run function
+            // the output of the command will be displayed in the shell running the neocmd_run function
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
@@ -273,12 +273,12 @@ pid_t cmd_run_async(cmd_t *cmd)
     return -1;
 }
 
-bool cmd_run_sync(cmd_t *cmd, int *status, int *code, bool print_status_desc)
+bool neocmd_run_sync(neocmd_t *neocmd, int *status, int *code, bool print_status_desc)
 {
     // the parent and child share the same open file descriptions and file descriptors
     // for stdin, stdout, and stderr
 
-    pid_t child = cmd_run_async(cmd);
+    pid_t child = neocmd_run_async(neocmd);
     if (child == -1)
     {
         return false;
@@ -291,52 +291,52 @@ bool cmd_run_sync(cmd_t *cmd, int *status, int *code, bool print_status_desc)
 #undef READ_END
 #undef WRITE_END
 
-cmd_t *cmd_create(shell_t shell)
+neocmd_t *neocmd_create(neoshell_t shell)
 {
-    cmd_t *cmd = (cmd_t *)malloc(sizeof(cmd_t));
-    if (!cmd)
+    neocmd_t *neocmd = (neocmd_t *)malloc(sizeof(neocmd_t));
+    if (!neocmd)
     {
         return NULL;
     }
 
 #define MIN_ARG_NUM 16
-    cmd->args = dyn_arr_create(MIN_ARG_NUM, sizeof(strix_t *), NULL);
+    neocmd->args = dyn_arr_create(MIN_ARG_NUM, sizeof(strix_t *), NULL);
 #undef MIN_ARG_NUM
-    if (!cmd->args)
+    if (!neocmd->args)
     {
-        free(cmd);
+        free(neocmd);
         return NULL;
     }
-    cmd->shell = shell;
+    neocmd->shell = shell;
 
-    return cmd;
+    return neocmd;
 }
 
-bool cmd_delete(cmd_t *cmd)
+bool neocmd_delete(neocmd_t *neocmd)
 {
-    if (!cmd || !cmd->args)
+    if (!neocmd || !neocmd->args)
     {
         return false;
     }
 
-    cleanup_arg_array(cmd->args);
+    cleanup_arg_array(neocmd->args);
 
-    dyn_arr_free(cmd->args);
-    free((void *)cmd);
+    dyn_arr_free(neocmd->args);
+    free((void *)neocmd);
 
     return true;
 }
 
-bool cmd_append_null(cmd_t *cmd, ...)
+bool neocmd_append_null(neocmd_t *neocmd, ...)
 {
-    if (!cmd || !cmd->args)
+    if (!neocmd || !neocmd->args)
     {
         return false;
     }
 
     va_list args;
-    va_start(args, cmd); // the variadic arguments start after the parameter cmd; initialize the list with the last static arguments
-    dyn_arr_t *cmd_args = cmd->args;
+    va_start(args, neocmd); // the variadic arguments start after the parameter neocmd; initialize the list with the last static arguments
+    dyn_arr_t *neocmd_args = neocmd->args;
 
     const char *arg = va_arg(args, const char *);
     while (arg)
@@ -344,14 +344,14 @@ bool cmd_append_null(cmd_t *cmd, ...)
         strix_t *arg_strix = strix_create(arg);
         if (!arg_strix)
         {
-            cleanup_arg_array(cmd_args);
+            cleanup_arg_array(neocmd_args);
             va_end(args);
             return false;
         }
 
-        if (!dyn_arr_append(cmd_args, &arg_strix))
+        if (!dyn_arr_append(neocmd_args, &arg_strix))
         {
-            APPEND_CLEANUP(cmd_args);
+            APPEND_CLEANUP(neocmd_args);
         }
         arg = va_arg(args, const char *);
     }

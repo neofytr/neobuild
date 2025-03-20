@@ -6,6 +6,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+
+
 // for pid_t
 #include <sys/types.h>
 
@@ -17,7 +19,7 @@ typedef enum
     DASH, /**< Dash shell */
     BASH, /**< Bash shell */
     SH    /**< Standard shell (sh) */
-} shell_t;
+} neoshell_t;
 
 /**
  * Structure representing a command to be executed.
@@ -25,19 +27,19 @@ typedef enum
 typedef struct
 {
     dyn_arr_t *args; /**< Dynamic array storing command arguments. */
-    shell_t shell;   /**< Shell type used to execute the command. */
-} cmd_t;
+    neoshell_t shell;   /**< Shell type used to execute the command. */
+} neocmd_t;
 
 /**
  * Appends arguments to a command structure.
  *
- * This macro simplifies appending multiple arguments to a `cmd_t` object.
+ * This macro simplifies appending multiple arguments to a `neocmd_t` object.
  * It automatically adds a terminating `NULL` argument.
  *
- * @param cmd_ptr Pointer to the `cmd_t` object.
+ * @param neocmd_ptr Pointer to the `neocmd_t` object.
  * @param ... Variable arguments representing the command arguments to append.
  */
-#define cmd_append(cmd_ptr, ...) cmd_append_null((cmd_ptr), __VA_ARGS__, NULL)
+#define neocmd_append(neocmd_ptr, ...) neocmd_append_null((neocmd_ptr), __VA_ARGS__, NULL)
 
 /**
  * Generates a string representation of a label, ensuring compatibility with filenames containing whitespaces.
@@ -51,17 +53,17 @@ typedef struct
  * Creates a new command structure.
  *
  * @param shell The shell type to be used for executing the command.
- * @return Pointer to a newly allocated `cmd_t` structure.
+ * @return Pointer to a newly allocated `neocmd_t` structure.
  */
-cmd_t *cmd_create(shell_t shell);
+neocmd_t *neocmd_create(neoshell_t shell);
 
 /**
  * Deletes a command structure and frees allocated resources.
  *
- * @param cmd Pointer to the `cmd_t` object to be deleted.
+ * @param neocmd Pointer to the `neocmd_t` object to be deleted.
  * @return true if the command was successfully deleted, false otherwise.
  */
-bool cmd_delete(cmd_t *cmd);
+bool neocmd_delete(neocmd_t *neocmd);
 
 /*
  * This function runs a command asynchronously by forking a child process.
@@ -83,15 +85,15 @@ bool cmd_delete(cmd_t *cmd);
  *
  * This function forks a new process to execute the command in the background.
  *
- * @param cmd Pointer to the command structure to be executed.
+ * @param neocmd Pointer to the command structure to be executed.
  * @return The process ID (`pid_t`) of the child process if successful, or `-1` on failure.
  */
-pid_t cmd_run_async(cmd_t *cmd);
+pid_t neocmd_run_async(neocmd_t *neocmd);
 
 /**
  * Runs the given command synchronously and waits for it to complete.
  *
- * @param cmd Pointer to the command structure.
+ * @param neocmd Pointer to the command structure.
  * @param status Pointer to an integer where the process exit status will be stored.
  *               - If the process exits normally, `*status` will hold the exit code (0-255).
  *               - If the process is terminated by a signal, `*status` will hold the signal number.
@@ -101,7 +103,7 @@ pid_t cmd_run_async(cmd_t *cmd);
  *
  * @return `true` if the process was successfully waited on, `false` otherwise.
  */
-bool cmd_run_sync(cmd_t *cmd, int *status, int *code, bool print_status_desc);
+bool neocmd_run_sync(neocmd_t *neocmd, int *status, int *code, bool print_status_desc);
 
 /**
  * Waits for a child process to terminate.
@@ -124,21 +126,21 @@ bool shell_wait(pid_t pid, int *status, int *code, bool should_print);
  * This function allows appending multiple arguments to a command dynamically.
  * The arguments list must be NULL-terminated.
  *
- * @param cmd Pointer to the `cmd_t` object.
+ * @param neocmd Pointer to the `neocmd_t` object.
  * @param ... Variable argument list representing the command arguments.
  * @return `true` if the arguments were successfully appended, `false` otherwise.
  */
-bool cmd_append_null(cmd_t *cmd, ...);
+bool neocmd_append_null(neocmd_t *neocmd, ...);
 
 /**
  * Generates a string representation of the command.
  *
- * This function converts a `cmd_t` object into a formatted string representation.
+ * This function converts a `neocmd_t` object into a formatted string representation.
  * The caller is responsible for freeing the returned string using `free()`.
  *
- * @param cmd Pointer to the command structure.
+ * @param neocmd Pointer to the command structure.
  * @return A dynamically allocated string containing the command representation.
  */
-const char *cmd_render(cmd_t *cmd);
+const char *neocmd_render(neocmd_t *neocmd);
 
 #endif /* NEOBUILD_H */
