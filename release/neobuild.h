@@ -206,7 +206,10 @@ bool neo_free_config(neoconfig_t *config_arr, size_t config_arr_len);
 
 neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
 
-bool neo_compile(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, const char *linker_flags);
+// if output is NULL, the name of the output object file is the same as the source file (with removed .c)
+// and is placed in the same directory and the source file
+// if the compiler flags are NULL, the only compiler flag used is "-c", which specifies compilation to object files
+bool neo_compile_to_object(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags);
 
 #ifdef NEO_REMOVE_PREFIX
 

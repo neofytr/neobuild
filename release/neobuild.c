@@ -115,15 +115,83 @@ neocompiler_t neo_get_global_default_compiler()
     return GLOBAL_DEFAULT_COMPILER;
 }
 
-bool neo_compile(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, const char *linker_flags)
+bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags)
 {
-    if (!source || !output)
+    if (!source)
     {
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
         NEO_LOG(ERROR, msg);
-        return NULL;
+        return false;
     }
+
+    size_t source_len = strlen(source);
+    char *output_name = (char *)output;
+
+    if (!output)
+    {
+        output_name = (char *)malloc((source_len + 1) * sizeof(char));
+        if (!output)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Allocation for the output file name failed: %s", __func__, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            return false;
+        }
+
+        size_t index = 0;
+        for (index = 0; index < source_len; index++)
+        {
+            if (index < source_len - 1 && source[index] == '.' && source[index + 1] == 'c')
+            {
+                break;
+            }
+            else
+            {
+                output_name[index] = source[index];
+            }
+        }
+
+        output_name[index] = 0; // null terminate
+    }
+
+    neocmd_t *cmd = neocmd_create(SH);
+    if (!cmd)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Error creating neocmd object for compiling", __func__);
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    if (compiler == GLOBAL_DEFAULT)
+    {
+        compiler = neo_get_global_default_compiler();
+    }
+
+    switch (compiler)
+    {
+    case GCC:
+    {
+        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags);
+        break;
+    }
+    case CLANG:
+    {
+        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags);
+        break;
+    }
+    }
+
+    if (!neocmd_run_sync(cmd, NULL, NULL, false))
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Error running the compile command", __func__);
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    return true;
 }
 
 neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
