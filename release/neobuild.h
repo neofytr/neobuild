@@ -180,6 +180,8 @@ bool neocmd_append_null(neocmd_t *neocmd, ...);
  */
 const char *neocmd_render(neocmd_t *neocmd);
 
+bool neo_mkdir(const char *dir_path);
+
 #ifdef NEO_REMOVE_SUFFIX
 
 #define cmd_create neocmd_create

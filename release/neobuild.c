@@ -39,6 +39,19 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+bool neo_mkdir(const char *dir_path)
+{
+    if (!dir_path)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, "[%s] Argument dir_path is invalid", __func__);
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    
+}
+
 bool neorebuild(const char *build_file_c, char **argv)
 {
     if (!argv)
