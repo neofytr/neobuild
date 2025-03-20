@@ -1,5 +1,6 @@
 #include "neobuild.h"
 #include "strix/header/strix.h"
+#include "neovec/neovec.h"
 
 // for pipe
 #include <unistd.h>
@@ -39,24 +40,48 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
-bool neo_parse_config_file(char **argv)
+neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len)
 {
-    if (!argv)
+    if (!argv || !config_arr_len)
     {
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
         NEO_LOG(ERROR, msg);
-        return false;
+        return NULL;
     }
 
-    argv++;
-    char *start;
-    while (argv)
+    char file_name[MAX_TEMP_STRLEN] = {0};
+    char *ptr = (char *)file_name;
+    char **temp = argv;
+    temp++;
+
+    while (*temp)
     {
-        if (start = strstr(*argv, "--config="))
+        char *start = strstr(*temp, "--config=");
+        if (start)
         {
+            start += 9; // Skip "--config="
+            while (*start)
+            {
+                *ptr++ = *start++;
+            }
+
+            *ptr = 0; // null terminate
+            break;
         }
+
+        temp++;
     }
+
+    if (ptr == file_name)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] No configuration argument found", __func__);
+        NEO_LOG(INFO, msg);
+        return NULL;
+    }
+
+    return neo_parse_config((const char *)file_name, config_arr_len);
 }
 
 bool neo_free_config(neoconfig_t *config_arr, size_t config_num)

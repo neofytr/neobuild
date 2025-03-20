@@ -188,11 +188,11 @@ const char *neocmd_render(neocmd_t *neocmd);
 
 bool neo_mkdir(const char *dir_path, mode_t mode);
 
-neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num);
+neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_arr_len);
 
-bool neo_free_config(neoconfig_t *config_arr, size_t config_num);
+bool neo_free_config(neoconfig_t *config_arr, size_t config_arr_len);
 
-bool neo_parse_config_file(char **argv);
+neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
 
 #ifdef NEO_REMOVE_PREFIX
 
