@@ -21,29 +21,53 @@ fi
 
 echo "Using compiler: $CC"
 
-# ensure the required object files exist
-if [ ! -f "release/strix/binaries/strix.o" ]; then
-    echo "Building strix.o"
-    mkdir -p release/strix/binaries
-    $CC -c strix/source/main.c -o release/strix/binaries/strix.o -O3 -march=native
+# ensure directories exist
+mkdir -p release/strix/binaries
+mkdir -p release/dynarr/binaries
+mkdir -p release
+
+# check and build strix.o if necessary
+STRIX_SRC="strix/source/main.c"
+STRIX_OBJ="release/strix/binaries/strix.o"
+
+if [ ! -f "$STRIX_OBJ" ] || [ "$STRIX_SRC" -nt "$STRIX_OBJ" ]; then
+    echo "Compiling strix.o"
+    $CC -c "$STRIX_SRC" -o "$STRIX_OBJ" -O3 -march=native
     if [ $? -ne 0 ]; then
         echo "Failed to compile strix.o"
         exit 1
     fi
 fi
 
-if [ ! -f "release/dynarr/binaries/dynarr.o" ]; then
-    echo "Building dynarr.o"
-    mkdir -p release/dynarr/binaries
-    $CC -c release/dynarr/src/dynarr.c -o release/dynarr/binaries/dynarr.o -O3 -march=native
+# check and build dynarr.o if necessary
+DYNARR_SRC="release/dynarr/src/dynarr.c"
+DYNARR_OBJ="release/dynarr/binaries/dynarr.o"
+
+if [ ! -f "$DYNARR_OBJ" ] || [ "$DYNARR_SRC" -nt "$DYNARR_OBJ" ]; then
+    echo "Compiling dynarr.o"
+    $CC -c "$DYNARR_SRC" -o "$DYNARR_OBJ" -O3 -march=native
     if [ $? -ne 0 ]; then
         echo "Failed to compile dynarr.o"
         exit 1
     fi
 fi
 
+# check and build neobuild.o if necessary
+NEOBUILD_SRC="release/neobuild.c"
+NEOBUILD_OBJ="release/neobuild.o"
+
+if [ ! -f "$NEOBUILD_OBJ" ] || [ "$NEOBUILD_SRC" -nt "$NEOBUILD_OBJ" ]; then
+    echo "Compiling neobuild.o"
+    $CC -c "$NEOBUILD_SRC" -o "$NEOBUILD_OBJ" -O3 -march=native
+    if [ $? -ne 0 ]; then
+        echo "Failed to compile neobuild.o"
+        exit 1
+    fi
+fi
+
 # compile the provided .c file
-$CC "$SOURCE_FILE" release/strix/binaries/strix.o release/dynarr/binaries/dynarr.o release/neobuild.c -o "$OUTPUT_FILE" -lm -O3 -march=native
+echo "Compiling $SOURCE_FILE"
+$CC "$SOURCE_FILE" "$STRIX_OBJ" "$DYNARR_OBJ" "$NEOBUILD_OBJ" -o "$OUTPUT_FILE" -lm -O3 -march=native
 
 if [ $? -eq 0 ]; then
     echo "Compilation successful: $OUTPUT_FILE"
