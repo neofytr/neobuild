@@ -13,6 +13,18 @@
 
 typedef enum
 {
+    GCC,
+    CLANG,
+    GLOBAL_DEFAULT,
+} neocompiler_t;
+
+neocompiler_t GLOBAL_DEFAULT_COMPILER = GCC;
+
+void neo_set_global_default_compiler(neocompiler_t compiler);
+neocompiler_t neo_get_global_default_compiler();
+
+typedef enum
+{
     ERROR,
     WARNING,
     INFO,
@@ -193,6 +205,8 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_arr_l
 bool neo_free_config(neoconfig_t *config_arr, size_t config_arr_len);
 
 neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
+
+bool neo_compile(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, const char *linker_flags);
 
 #ifdef NEO_REMOVE_PREFIX
 

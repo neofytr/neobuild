@@ -105,6 +105,27 @@ bool neo_free_config(neoconfig_t *config_arr, size_t config_num)
     return true;
 }
 
+void neo_set_global_default_compiler(neocompiler_t compiler)
+{
+    GLOBAL_DEFAULT_COMPILER = compiler;
+}
+
+neocompiler_t neo_get_global_default_compiler()
+{
+    return GLOBAL_DEFAULT_COMPILER;
+}
+
+bool neo_compile(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, const char *linker_flags)
+{
+    if (!source || !output)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
+        NEO_LOG(ERROR, msg);
+        return NULL;
+    }
+}
+
 neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
 {
     if (!config_file_path || !config_num)
