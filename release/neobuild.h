@@ -18,8 +18,6 @@ typedef enum
     GLOBAL_DEFAULT,
 } neocompiler_t;
 
-neocompiler_t GLOBAL_DEFAULT_COMPILER = GCC;
-
 void neo_set_global_default_compiler(neocompiler_t compiler);
 neocompiler_t neo_get_global_default_compiler();
 
@@ -209,7 +207,7 @@ neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
 // if output is NULL, the name of the output object file is the same as the source file (with removed .c)
 // and is placed in the same directory and the source file
 // if the compiler flags are NULL, the only compiler flag used is "-c", which specifies compilation to object files
-bool neo_compile_to_object(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags);
+bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags);
 
 #ifdef NEO_REMOVE_PREFIX
 

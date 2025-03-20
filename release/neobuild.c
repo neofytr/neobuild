@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 
 #define MAX_TEMP_STRLEN (2048)
+static neocompiler_t GLOBAL_DEFAULT_COMPILER = GCC;
 
 static inline void cleanup_arg_array(dyn_arr_t *arr)
 {
@@ -131,7 +132,7 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
     if (!output)
     {
         output_name = (char *)malloc((source_len + 1) * sizeof(char));
-        if (!output)
+        if (!output_name)
         {
             char msg[MAX_TEMP_STRLEN];
             snprintf(msg, sizeof(msg), "[%s] Allocation for the output file name failed: %s", __func__, strerror(errno));
@@ -144,6 +145,8 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         {
             if (index < source_len - 1 && source[index] == '.' && source[index + 1] == 'c')
             {
+                output_name[index++] = '.';
+                output_name[index++] = 'o';
                 break;
             }
             else
