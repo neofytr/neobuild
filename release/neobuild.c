@@ -96,7 +96,7 @@ bool neo_free_config(neoconfig_t *config_arr, size_t config_num)
 
     for (size_t index = 0; index < config_num; index++)
     {
-        free(config_arr[index].config);
+        free(config_arr[index].key);
         free(config_arr[index].value);
     }
 
@@ -154,10 +154,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
     for (size_t index = 0; index < arr->len; index++)
     {
         strix_t *conf = arr->strix_arr[index];
-
-        size_t key_len = 0;
-        size_t value_len = 0;
-
+        size_t eq_index = 0;
         bool found = false;
 
         for (size_t counter = 0; counter < conf->len; counter++)
@@ -165,15 +162,8 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
             if (conf->str[counter] == '=')
             {
                 found = true;
-            }
-
-            if (found)
-            {
-                value_len++;
-            }
-            else
-            {
-                key_len++;
+                eq_index = counter;
+                break;
             }
         }
 
@@ -185,12 +175,30 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
             continue;
         }
 
-        char *config_ = (char *)malloc(key_len + 1); // + 1 for null byte
-        if (!config_)
+        size_t key_count = 0;
+        for (size_t i = 0; i < eq_index; i++)
+        {
+            if (!isspace(conf->str[i]))
+            {
+                key_count++;
+            }
+        }
+
+        size_t value_count = 0;
+        for (size_t i = eq_index + 1; i < conf->len; i++)
+        {
+            if (!isspace(conf->str[i]))
+            {
+                value_count++;
+            }
+        }
+
+        char *config_name = (char *)malloc(key_count + 1);
+        if (!config_name)
         {
             for (size_t i = 0; i < curr_index; i++)
             {
-                free(config_arr[i].config);
+                free(config_arr[i].key);
                 free(config_arr[i].value);
             }
             char msg[MAX_TEMP_STRLEN];
@@ -202,16 +210,16 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
             return NULL;
         }
 
-        char *value = (char *)malloc(value_len + 1);
+        char *value = (char *)malloc(value_count + 1);
         if (!value)
         {
             for (size_t i = 0; i < curr_index; i++)
             {
-                free(config_arr[i].config);
+                free(config_arr[i].key);
                 free(config_arr[i].value);
             }
             char msg[MAX_TEMP_STRLEN];
-            free(config_);
+            free(config_name);
             snprintf(msg, sizeof(msg), "[%s] Config-Value pair allocation failed: %s", __func__, strerror(errno));
             NEO_LOG(ERROR, msg);
             free(config_arr);
@@ -220,11 +228,25 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
             return NULL;
         }
 
-        memcpy(config_, conf->str, key_len - 1); // -1 to exclude '='
-        config_[key_len - 1] = 0;
+        size_t curr = 0;
+        for (size_t i = 0; i < eq_index; i++)
+        {
+            if (!isspace(conf->str[i]))
+            {
+                config_name[curr++] = conf->str[i];
+            }
+        }
+        config_name[curr] = 0;
 
-        memcpy(value, conf->str + key_len, value_len - 1); // Start after '='
-        value[value_len - 1] = 0;
+        curr = 0;
+        for (size_t i = eq_index + 1; i < conf->len; i++)
+        {
+            if (!isspace(conf->str[i]))
+            {
+                value[curr++] = conf->str[i];
+            }
+        }
+        value[curr] = 0;
 
         if (curr_index >= curr_cap)
         {
@@ -235,13 +257,13 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
                 char msg[MAX_TEMP_STRLEN];
                 snprintf(msg, sizeof(msg), "[%s] Config array reallocation failed: %s", __func__, strerror(errno));
                 NEO_LOG(ERROR, msg);
-                free(config_);
+                free(config_name);
                 free(value);
 
                 // free already allocated entries
                 for (size_t i = 0; i < curr_index; i++)
                 {
-                    free(config_arr[i].config);
+                    free(config_arr[i].key);
                     free(config_arr[i].value);
                 }
                 free(config_arr);
@@ -253,7 +275,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
             curr_cap = new_cap;
         }
 
-        config_arr[curr_index].config = config_;
+        config_arr[curr_index].key = config_name;
         config_arr[curr_index].value = value;
         curr_index++;
     }

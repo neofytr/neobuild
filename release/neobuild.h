@@ -21,7 +21,7 @@ typedef enum
 
 typedef struct
 {
-    char *config;
+    char *key;
     char *value;
 } neoconfig_t;
 
