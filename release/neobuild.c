@@ -39,6 +39,26 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+bool neo_parse_config_file(char **argv)
+{
+    if (!argv)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    argv++;
+    char *start;
+    while (argv)
+    {
+        if (start = strstr(*argv, "--config="))
+        {
+        }
+    }
+}
+
 bool neo_free_config(neoconfig_t *config_arr, size_t config_num)
 {
     if (!config_arr)
