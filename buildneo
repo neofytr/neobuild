@@ -21,8 +21,29 @@ fi
 
 echo "Using compiler: $CC"
 
+# ensure the required object files exist
+if [ ! -f "release/strix/binaries/strix.o" ]; then
+    echo "Building strix.o"
+    mkdir -p release/strix/binaries
+    $CC -c strix/source/main.c -o release/strix/binaries/strix.o -O3 -march=native
+    if [ $? -ne 0 ]; then
+        echo "Failed to compile strix.o"
+        exit 1
+    fi
+fi
+
+if [ ! -f "release/dynarr/binaries/dynarr.o" ]; then
+    echo "Building dynarr.o"
+    mkdir -p release/dynarr/binaries
+    $CC -c release/dynarr/src/dynarr.c -o release/dynarr/binaries/dynarr.o -O3 -march=native
+    if [ $? -ne 0 ]; then
+        echo "Failed to compile dynarr.o"
+        exit 1
+    fi
+fi
+
 # compile the provided .c file
-$CC "$SOURCE_FILE" release/strix/binaries/strix.o release/dynarr/src/dynarr.c release/neobuild.c -o "$OUTPUT_FILE" -lm -O3 -march=native
+$CC "$SOURCE_FILE" release/strix/binaries/strix.o release/dynarr/binaries/dynarr.o release/neobuild.c -o "$OUTPUT_FILE" -lm -O3 -march=native
 
 if [ $? -eq 0 ]; then
     echo "Compilation successful: $OUTPUT_FILE"
