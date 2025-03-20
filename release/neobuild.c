@@ -34,6 +34,13 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+bool neorebuild(const char *build_file)
+{
+    if (!build_file)
+    {
+    }
+}
+
 const char *neocmd_render(neocmd_t *neocmd)
 {
     if (!neocmd || !neocmd->args)
@@ -96,7 +103,11 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
     if (waitid(P_PID, (id_t)pid, &info, WEXITED | WSTOPPED) == -1)
     {
         if (should_print)
-            fprintf(stderr, "waitid on pid %d failed: %s\n", pid, strerror(errno));
+        {
+            char error_msg[256];
+            snprintf(error_msg, sizeof(error_msg), "waitid on pid %d failed: %s", pid, strerror(errno));
+            NEO_LOG(ERROR, error_msg);
+        }
         return false;
     }
 
@@ -117,38 +128,62 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
     case CLD_EXITED:
         // child exited normally, store the exit status
         if (should_print)
-            fprintf(stderr, "[neocmd] shell process %d exited normally with status %d\n", pid, info.si_status);
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "shell process %d exited normally with status %d", pid, info.si_status);
+            NEO_LOG(INFO, msg);
+        }
         break;
 
     case CLD_KILLED:
         // child was killed by a signal
         if (should_print)
-            fprintf(stderr, "[ERROR] shell process %d was killed by signal %d\n", pid, info.si_status);
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "shell process %d was killed by signal %d", pid, info.si_status);
+            NEO_LOG(ERROR, msg);
+        }
         break;
 
     case CLD_DUMPED:
         // child was killed by a signal and dumped core
         if (should_print)
-            fprintf(stderr, "[ERROR] shell process %d was killed by signal %d (core dumped)\n", pid, info.si_status);
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "shell process %d was killed by signal %d (core dumped)", pid, info.si_status);
+            NEO_LOG(ERROR, msg);
+        }
         break;
 
     case CLD_STOPPED:
         // child was stopped by a signal
         if (should_print)
-            fprintf(stderr, "[ERROR] shell process %d was stopped by signal %d\n", pid, info.si_status);
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "shell process %d was stopped by signal %d", pid, info.si_status);
+            NEO_LOG(ERROR, msg);
+        }
         break;
 
     case CLD_TRAPPED:
         // traced child has trapped (e.g., during debugging)
         if (should_print)
-            fprintf(stderr, "[ERROR] shell process %d was trapped by signal %d (traced child)\n", pid, info.si_status);
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "shell process %d was trapped by signal %d (traced child)", pid, info.si_status);
+            NEO_LOG(ERROR, msg);
+        }
         break;
 
     default:
         // unknown or unexpected termination reason
         if (should_print)
-            fprintf(stderr, "[ERROR] shell process %d terminated in an unknown way (si_code: %d, si_status: %d)\n",
-                    pid, info.si_code, info.si_status);
+        {
+            char msg[256];
+            snprintf(msg, sizeof(msg), "shell process %d terminated in an unknown way (si_code: %d, si_status: %d)",
+                     pid, info.si_code, info.si_status);
+            NEO_LOG(ERROR, msg);
+        }
         return false;
     }
 
@@ -194,14 +229,18 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
         return -1;
     }
 
-    fprintf(stdout, "[neocmd] %s\n", command); // display the command being run by the newly created shell
+    char msg[512];
+    snprintf(msg, sizeof(msg), "%s", command);
+    NEO_LOG(INFO, msg); // display the command being run by the newly created shell
 
     pid_t child = fork();
 
     if (child == -1)
     {
         // no child process is created
-        fprintf(stderr, "[ERROR] Child process could not be forked: %s\n", strerror(errno));
+        char error_msg[256];
+        snprintf(error_msg, sizeof(error_msg), "Child process could not be forked: %s", strerror(errno));
+        NEO_LOG(ERROR, error_msg);
         free((void *)command);
         return -1;
     }
@@ -217,7 +256,9 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                char error_msg[256];
+                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -229,7 +270,9 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/sh", argv) == -1)
             {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                char error_msg[256];
+                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -241,7 +284,9 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/dash", argv) == -1)
             {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                char error_msg[256];
+                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
             }
@@ -254,7 +299,9 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
-                fprintf(stderr, "[ERROR] Child shell could not be executed: %s\n", strerror(errno));
+                char error_msg[256];
+                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
             }

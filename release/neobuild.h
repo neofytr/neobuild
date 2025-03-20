@@ -9,6 +9,44 @@
 // for pid_t
 #include <sys/types.h>
 
+#include <stdio.h>
+
+typedef enum
+{
+    ERROR,
+    WARNING,
+    INFO,
+    DEBUG
+} neolog_level_t;
+
+#define NEO_LOG(level, msg)                         \
+    do                                              \
+    {                                               \
+        switch (level)                              \
+        {                                           \
+        case ERROR:                                 \
+            fprintf(stderr, "[ERROR] %s\n", msg);   \
+            break;                                  \
+        case WARNING:                               \
+            fprintf(stderr, "[WARNING] %s\n", msg); \
+            break;                                  \
+        case INFO:                                  \
+            fprintf(stdout, "[INFO] %s\n", msg);    \
+            break;                                  \
+        case DEBUG:                                 \
+            fprintf(stdout, "[DEBUG] %s\n", msg);   \
+            break;                                  \
+        default:                                    \
+            fprintf(stdout, "[UNKNOWN] %s\n", msg); \
+            break;                                  \
+        }                                           \
+    } while (0)
+
+// check if the neo.c build C file has changed since the previous compilation of it to neo
+// (done by checking the modified date/time of neo.c; if this time comes after the last modified of neo.c, we need to rebuild neo from this new neo.c)
+
+bool neorebuild(const char *build_file);
+
 /**
  * Enum representing different shell types.
  */
