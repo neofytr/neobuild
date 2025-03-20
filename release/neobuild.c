@@ -39,6 +39,31 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
+{
+    if (!config_file_path || !config_num)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, "[%s] Arguments invalid", __func__);
+        NEO_LOG(ERROR, msg);
+        return NULL;
+    }
+
+#define INIT_CONFIG_SIZE 128
+
+    neoconfig_t *config = (neoconfig_t *)malloc(sizeof(neoconfig_t) * INIT_CONFIG_SIZE);
+    if (!config)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, "[%s] Config array allocation failed: %s", __func__, strerror(errno));
+        NEO_LOG(ERROR, msg);
+        return NULL;
+    }
+#undef INIT_CONFIG_SIZE
+
+    size_t curr_len = 0;
+}
+
 bool neo_mkdir(const char *dir_path, mode_t dir_mode)
 {
     if (!dir_path)

@@ -188,9 +188,9 @@ const char *neocmd_render(neocmd_t *neocmd);
 
 bool neo_mkdir(const char *dir_path, mode_t mode);
 
-neoconfig_t *neo_parse_config(const char *config_file_path);
+neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num);
 
-bool neo_free_config(neoconfig_t *config);
+bool neo_free_config(neoconfig_t *config, size_t config_num);
 
 #ifdef NEO_REMOVE_SUFFIX
 
