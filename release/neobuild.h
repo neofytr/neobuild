@@ -6,7 +6,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-// for pid_t
+// for pid_t and mode_t
 #include <sys/types.h>
 
 #include <stdio.h>
@@ -18,6 +18,12 @@ typedef enum
     INFO,
     DEBUG
 } neolog_level_t;
+
+typedef struct
+{
+    char *name;
+    char *value;
+} neoconfig_t;
 
 #define NEO_LOG(level, msg)                         \
     do                                              \
@@ -180,7 +186,11 @@ bool neocmd_append_null(neocmd_t *neocmd, ...);
  */
 const char *neocmd_render(neocmd_t *neocmd);
 
-bool neo_mkdir(const char *dir_path);
+bool neo_mkdir(const char *dir_path, mode_t mode);
+
+neoconfig_t *neo_parse_config(const char *config_file_path);
+
+bool neo_free_config(neoconfig_t *config);
 
 #ifdef NEO_REMOVE_SUFFIX
 

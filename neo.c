@@ -4,6 +4,7 @@
 int main(int argc, char **argv)
 {
     neorebuild("neo.c", argv);
+    
     neocmd_t *cmd = neocmd_create(BASH);
     neocmd_append(cmd, "clang", "-Wall", "temporary.c", "-o", "main", "&& ./main");
     int status, code;
