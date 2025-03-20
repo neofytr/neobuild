@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# check if a .c file is provided as an argument
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <source_file.c>"
+    exit 1
+fi
+
+SOURCE_FILE="$1"
+OUTPUT_FILE="${SOURCE_FILE%.c}"
+
+# determine the C compiler
+if command -v gcc &>/dev/null; then
+    CC=gcc
+elif command -v clang &>/dev/null; then
+    CC=clang
+else
+    echo "Error: No GCC or Clang compiler found."
+    exit 1
+fi
+
+echo "Using compiler: $CC"
+
+# compile the provided .c file
+$CC "$SOURCE_FILE" neobuild/strix/binaries/strix.o neobuild/dynarr/src/dynarr.c neobuild/neobuild.c -o "$OUTPUT_FILE" -lm -O3 -march=native
+
+if [ $? -eq 0 ]; then
+    echo "Compilation successful: $OUTPUT_FILE"
+else
+    echo "Compilation failed."
+    exit 1
+fi

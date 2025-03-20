@@ -1,4 +1,4 @@
-#include "neobuild.h"
+#include "neobuild/neobuild.h"
 #include <stdio.h>
 
 int main()
