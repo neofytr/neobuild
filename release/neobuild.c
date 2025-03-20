@@ -39,7 +39,7 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
-bool neo_mkdir(const char *dir_path)
+bool neo_mkdir(const char *dir_path, mode_t dir_mode)
 {
     if (!dir_path)
     {
@@ -49,7 +49,28 @@ bool neo_mkdir(const char *dir_path)
         return false;
     }
 
-    
+    if (dir_mode)
+    {
+        if (mkdir(dir_path, 0777) == -1)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, "[%s] Creating dir %s failed", __func__, dir_path);
+            NEO_LOG(ERROR, msg);
+            return false;
+        }
+    }
+    else
+    {
+        if (mkdir(dir_path, dir_mode) == -1)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, "[%s] Creating dir %s failed", __func__, dir_path);
+            NEO_LOG(ERROR, msg);
+            return false;
+        }
+    }
+
+    return true;
 }
 
 bool neorebuild(const char *build_file_c, char **argv)
