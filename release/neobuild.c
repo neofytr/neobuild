@@ -39,6 +39,27 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+bool neo_free_config(neoconfig_t *config_arr, size_t config_num)
+{
+    if (!config_arr)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    for (size_t index = 0; index < config_num; index++)
+    {
+        free(config_arr[index].config);
+        free(config_arr[index].value);
+    }
+
+    free(config_arr);
+
+    return true;
+}
+
 neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
 {
     if (!config_file_path || !config_num)
@@ -51,8 +72,8 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
 
 #define INIT_CONFIG_SIZE 128
 
-    neoconfig_t *config = (neoconfig_t *)malloc(sizeof(neoconfig_t) * INIT_CONFIG_SIZE);
-    if (!config)
+    neoconfig_t *config_arr = (neoconfig_t *)malloc(sizeof(neoconfig_t) * INIT_CONFIG_SIZE);
+    if (!config_arr)
     {
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Config array allocation failed: %s", __func__, strerror(errno));
@@ -70,7 +91,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] File conversion to strix failed", __func__);
         NEO_LOG(ERROR, msg);
-        free(config);
+        free(config_arr);
         return NULL;
     }
 
@@ -80,7 +101,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Config parsing failed", __func__);
         NEO_LOG(ERROR, msg);
-        free(config);
+        free(config_arr);
         strix_free(file);
         return NULL;
     }
@@ -124,13 +145,13 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
         {
             for (size_t i = 0; i < curr_index; i++)
             {
-                free(config[i].config);
-                free(config[i].value);
+                free(config_arr[i].config);
+                free(config_arr[i].value);
             }
             char msg[MAX_TEMP_STRLEN];
             snprintf(msg, sizeof(msg), "[%s] Config-Value pair allocation failed: %s", __func__, strerror(errno));
             NEO_LOG(ERROR, msg);
-            free(config);
+            free(config_arr);
             strix_free(file);
             strix_free_strix_arr(arr);
             return NULL;
@@ -141,14 +162,14 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
         {
             for (size_t i = 0; i < curr_index; i++)
             {
-                free(config[i].config);
-                free(config[i].value);
+                free(config_arr[i].config);
+                free(config_arr[i].value);
             }
             char msg[MAX_TEMP_STRLEN];
             free(config_);
             snprintf(msg, sizeof(msg), "[%s] Config-Value pair allocation failed: %s", __func__, strerror(errno));
             NEO_LOG(ERROR, msg);
-            free(config);
+            free(config_arr);
             strix_free(file);
             strix_free_strix_arr(arr);
             return NULL;
@@ -163,7 +184,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
         if (curr_index >= curr_cap)
         {
             size_t new_cap = curr_cap * 2;
-            neoconfig_t *temp = (neoconfig_t *)realloc(config, sizeof(neoconfig_t) * new_cap);
+            neoconfig_t *temp = (neoconfig_t *)realloc(config_arr, sizeof(neoconfig_t) * new_cap);
             if (!temp)
             {
                 char msg[MAX_TEMP_STRLEN];
@@ -175,20 +196,20 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
                 // free already allocated entries
                 for (size_t i = 0; i < curr_index; i++)
                 {
-                    free(config[i].config);
-                    free(config[i].value);
+                    free(config_arr[i].config);
+                    free(config_arr[i].value);
                 }
-                free(config);
+                free(config_arr);
                 strix_free(file);
                 strix_free_strix_arr(arr);
                 return NULL;
             }
-            config = temp;
+            config_arr = temp;
             curr_cap = new_cap;
         }
 
-        config[curr_index].config = config_;
-        config[curr_index].value = value;
+        config_arr[curr_index].config = config_;
+        config_arr[curr_index].value = value;
         curr_index++;
     }
 
@@ -199,15 +220,15 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
 
     if (!curr_index)
     {
-        free(config);
+        free(config_arr);
         return NULL;
     }
 
-    neoconfig_t *final_config = (neoconfig_t *)realloc(config, sizeof(neoconfig_t) * curr_index);
+    neoconfig_t *final_config = (neoconfig_t *)realloc(config_arr, sizeof(neoconfig_t) * curr_index);
     if (!final_config)
     {
         // if realloc fails, the original block is still valid
-        return config;
+        return config_arr;
     }
 
     return final_config;
