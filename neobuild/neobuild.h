@@ -6,6 +6,9 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+// for pid_t
+#include <sys/types.h>
+
 /**
  * Enum representing different shell types.
  */

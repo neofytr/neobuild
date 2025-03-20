@@ -4,9 +4,6 @@
 // for pipe
 #include <unistd.h>
 
-// for pid_t
-#include <sys/types.h>
-
 // for wait
 #include <sys/wait.h>
 
