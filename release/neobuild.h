@@ -192,7 +192,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num);
 
 bool neo_free_config(neoconfig_t *config_arr, size_t config_num);
 
-#ifdef NEO_REMOVE_SUFFIX
+#ifdef NEO_REMOVE_PREFIX
 
 #define cmd_create neocmd_create
 #define cmd_delete neocmd_delete
