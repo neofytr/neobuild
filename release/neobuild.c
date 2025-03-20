@@ -13,6 +13,11 @@
 // for errno
 #include <errno.h>
 
+// for file stats
+#include <sys/stat.h>
+
+#define MAX_TEMP_STRLEN (2048)
+
 static inline void cleanup_arg_array(dyn_arr_t *arr)
 {
     for (int64_t index = 0; index <= (int64_t)(arr)->last_index; index++)
@@ -34,23 +39,155 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
-bool neorebuild(const char *build_file)
+bool neorebuild(const char *build_file_c, char **argv)
 {
+    if (!argv)
+        return true;
+
+    char **temp = argv;
+    temp++;
+    while (*temp)
+    {
+        if (!strcmp(*temp, "--no-rebuild"))
+            return true;
+        temp++;
+    }
+
+    if (!build_file_c)
+    {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neorebuild] Build file pointer is NULL");
+        NEO_LOG(ERROR, error_msg);
+        return false;
+    }
+
+    struct stat build_file_c_stat;
+    if (stat(build_file_c, &build_file_c_stat))
+    {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neorebuild] Failed getting file stats for %s: %s", build_file_c, strerror(errno));
+        NEO_LOG(ERROR, error_msg);
+        return false;
+    }
+
+    size_t build_file_len = strlen(build_file_c);
+    char *build_file = (char *)malloc((build_file_len + 1) * sizeof(char));
     if (!build_file)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neorebuild] Memory allocation failed: %s", strerror(errno));
+        NEO_LOG(ERROR, error_msg);
+        return false;
     }
+
+    size_t index = 0;
+    while (index < build_file_len)
+    {
+        if (index < build_file_len - 1 && build_file_c[index] == '.' && build_file_c[index + 1] == 'c')
+            break;
+
+        build_file[index] = build_file_c[index];
+        index++;
+    }
+
+    build_file[index] = 0;
+
+    struct stat build_file_stat;
+    if (stat(build_file, &build_file_stat))
+    {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neorebuild] Failed getting file stats for %s: %s", build_file, strerror(errno));
+        NEO_LOG(ERROR, error_msg);
+        free(build_file);
+        return false;
+    }
+
+    if (build_file_stat.st_mtime < build_file_c_stat.st_mtime)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[neorebuild] The build file %s was modified since it was last built", build_file_c);
+        NEO_LOG(INFO, msg);
+
+        snprintf(msg, sizeof(msg), "[neorebuild] Rebuilding %s", build_file_c);
+        NEO_LOG(INFO, msg);
+
+        char cmd[MAX_TEMP_STRLEN];
+        snprintf(cmd, sizeof(cmd), "./buildneo %s", build_file_c);
+        NEO_LOG(INFO, cmd);
+
+        if (system(cmd) == -1)
+        {
+            snprintf(msg, sizeof(msg), "[neorebuild] Rebuilding %s failed: %s", build_file_c, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            snprintf(msg, sizeof(msg), "[neorebuild] Running the old version of %s", build_file);
+            NEO_LOG(INFO, msg);
+            free(build_file);
+            return false;
+        }
+
+        snprintf(msg, sizeof(msg), "[neorebuild] Running the new version of %s and exiting the current running version", build_file);
+        NEO_LOG(INFO, msg);
+
+        neocmd_t *neo = neocmd_create(SH);
+        if (!neo)
+        {
+            snprintf(msg, sizeof(msg), "[neorebuild] Failed running the new version of %s; Continuing with the current running version: %s", build_file, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            free(build_file);
+            return false;
+        }
+
+        neocmd_append(neo, "./neo --no-rebuild");
+
+        char **arg_ptr = argv;
+        arg_ptr++; // skip program name
+        while (*arg_ptr)
+        {
+            neocmd_append(neo, *arg_ptr);
+            arg_ptr++;
+        }
+
+        if (!neocmd_run_sync(neo, NULL, NULL, false))
+        {
+            snprintf(msg, sizeof(msg), "[neorebuild] Failed running the new version of %s; Continuing with the current running version: %s", build_file, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            free(build_file);
+            neocmd_delete(neo);
+            return false;
+        }
+
+        free(build_file);
+        neocmd_delete(neo);
+        exit(EXIT_SUCCESS);
+        return true; // never reached
+    }
+    else
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[neorebuild] No rebuild required for %s (not modified)", build_file_c);
+        NEO_LOG(INFO, msg);
+    }
+
+    free(build_file);
+    return true;
 }
 
 const char *neocmd_render(neocmd_t *neocmd)
 {
     if (!neocmd || !neocmd->args)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_render] Invalid neocmd or args pointer");
+        NEO_LOG(ERROR, error_msg);
         return NULL;
     }
 
     strix_t *strix = strix_create_empty();
     if (!strix)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_render] Failed to create empty strix");
+        NEO_LOG(ERROR, error_msg);
         return NULL;
     }
 
@@ -62,18 +199,27 @@ const char *neocmd_render(neocmd_t *neocmd)
         strix_t *temp;
         if (!dyn_arr_get(arr, index, &temp))
         {
+            char error_msg[MAX_TEMP_STRLEN];
+            snprintf(error_msg, sizeof(error_msg), "[neocmd_render] Failed to get item at index %ld", index);
+            NEO_LOG(ERROR, error_msg);
             strix_free(strix);
             return NULL;
         }
 
         if (!strix_concat(strix, temp))
         {
+            char error_msg[MAX_TEMP_STRLEN];
+            snprintf(error_msg, sizeof(error_msg), "[neocmd_render] Failed to concatenate strix at index %ld", index);
+            NEO_LOG(ERROR, error_msg);
             strix_free(strix);
             return NULL;
         }
 
         if (!strix_append(strix, " "))
         {
+            char error_msg[MAX_TEMP_STRLEN];
+            snprintf(error_msg, sizeof(error_msg), "[neocmd_render] Failed to append space after index %ld", index);
+            NEO_LOG(ERROR, error_msg);
             strix_free(strix);
             return NULL;
         }
@@ -82,6 +228,9 @@ const char *neocmd_render(neocmd_t *neocmd)
     char *str = strix_to_cstr(strix);
     if (!str)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_render] Failed to convert strix to C string");
+        NEO_LOG(ERROR, error_msg);
         strix_free(strix);
         return NULL;
     }
@@ -95,6 +244,9 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
     // check for invalid arguments
     if (pid < 0)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neoshell_wait] Invalid pid: %d", pid);
+        NEO_LOG(ERROR, error_msg);
         return false;
     }
 
@@ -104,8 +256,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
     {
         if (should_print)
         {
-            char error_msg[256];
-            snprintf(error_msg, sizeof(error_msg), "waitid on pid %d failed: %s", pid, strerror(errno));
+            char error_msg[MAX_TEMP_STRLEN];
+            snprintf(error_msg, sizeof(error_msg), "[neoshell_wait] waitid on pid %d failed: %s", pid, strerror(errno));
             NEO_LOG(ERROR, error_msg);
         }
         return false;
@@ -129,8 +281,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         // child exited normally, store the exit status
         if (should_print)
         {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "shell process %d exited normally with status %d", pid, info.si_status);
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[neoshell_wait] shell process %d exited normally with status %d", pid, info.si_status);
             NEO_LOG(INFO, msg);
         }
         break;
@@ -139,8 +291,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         // child was killed by a signal
         if (should_print)
         {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "shell process %d was killed by signal %d", pid, info.si_status);
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[neoshell_wait] shell process %d was killed by signal %d", pid, info.si_status);
             NEO_LOG(ERROR, msg);
         }
         break;
@@ -149,8 +301,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         // child was killed by a signal and dumped core
         if (should_print)
         {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "shell process %d was killed by signal %d (core dumped)", pid, info.si_status);
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[neoshell_wait] shell process %d was killed by signal %d (core dumped)", pid, info.si_status);
             NEO_LOG(ERROR, msg);
         }
         break;
@@ -159,8 +311,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         // child was stopped by a signal
         if (should_print)
         {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "shell process %d was stopped by signal %d", pid, info.si_status);
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[neoshell_wait] shell process %d was stopped by signal %d", pid, info.si_status);
             NEO_LOG(ERROR, msg);
         }
         break;
@@ -169,8 +321,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         // traced child has trapped (e.g., during debugging)
         if (should_print)
         {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "shell process %d was trapped by signal %d (traced child)", pid, info.si_status);
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[neoshell_wait] shell process %d was trapped by signal %d (traced child)", pid, info.si_status);
             NEO_LOG(ERROR, msg);
         }
         break;
@@ -179,8 +331,8 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         // unknown or unexpected termination reason
         if (should_print)
         {
-            char msg[256];
-            snprintf(msg, sizeof(msg), "shell process %d terminated in an unknown way (si_code: %d, si_status: %d)",
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[neoshell_wait] shell process %d terminated in an unknown way (si_code: %d, si_status: %d)",
                      pid, info.si_code, info.si_status);
             NEO_LOG(ERROR, msg);
         }
@@ -220,17 +372,23 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
 
     if (!neocmd)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async] Invalid neocmd pointer");
+        NEO_LOG(ERROR, error_msg);
         return -1;
     }
 
     const char *command = neocmd_render(neocmd);
     if (!command)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async] Failed to render command");
+        NEO_LOG(ERROR, error_msg);
         return -1;
     }
 
     char msg[512];
-    snprintf(msg, sizeof(msg), "%s", command);
+    snprintf(msg, sizeof(msg), "[neocmd_run_async] %s", command);
     NEO_LOG(INFO, msg); // display the command being run by the newly created shell
 
     pid_t child = fork();
@@ -238,8 +396,8 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
     if (child == -1)
     {
         // no child process is created
-        char error_msg[256];
-        snprintf(error_msg, sizeof(error_msg), "Child process could not be forked: %s", strerror(errno));
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async] Child process could not be forked: %s", strerror(errno));
         NEO_LOG(ERROR, error_msg);
         free((void *)command);
         return -1;
@@ -256,8 +414,8 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
-                char error_msg[256];
-                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                char error_msg[MAX_TEMP_STRLEN];
+                snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async:child] Child shell could not be executed: %s", strerror(errno));
                 NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
@@ -270,8 +428,8 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/sh", argv) == -1)
             {
-                char error_msg[256];
-                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                char error_msg[MAX_TEMP_STRLEN];
+                snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async:child] Child shell could not be executed: %s", strerror(errno));
                 NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
@@ -284,8 +442,8 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/dash", argv) == -1)
             {
-                char error_msg[256];
-                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                char error_msg[MAX_TEMP_STRLEN];
+                snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async:child] Child shell could not be executed: %s", strerror(errno));
                 NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
@@ -299,8 +457,8 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
             // since the stdout of the child and parent refer to the same open file description
             if (execv("/bin/bash", argv) == -1)
             {
-                char error_msg[256];
-                snprintf(error_msg, sizeof(error_msg), "Child shell could not be executed: %s", strerror(errno));
+                char error_msg[MAX_TEMP_STRLEN];
+                snprintf(error_msg, sizeof(error_msg), "[neocmd_run_async:child] Child shell could not be executed: %s", strerror(errno));
                 NEO_LOG(ERROR, error_msg);
                 free((void *)command);
                 return EXIT_FAILURE;
@@ -328,6 +486,9 @@ bool neocmd_run_sync(neocmd_t *neocmd, int *status, int *code, bool print_status
     pid_t child = neocmd_run_async(neocmd);
     if (child == -1)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_run_sync] Failed to run command asynchronously");
+        NEO_LOG(ERROR, error_msg);
         return false;
     }
 
@@ -343,6 +504,9 @@ neocmd_t *neocmd_create(neoshell_t shell)
     neocmd_t *neocmd = (neocmd_t *)malloc(sizeof(neocmd_t));
     if (!neocmd)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_create] Failed to allocate memory for neocmd");
+        NEO_LOG(ERROR, error_msg);
         return NULL;
     }
 
@@ -351,6 +515,9 @@ neocmd_t *neocmd_create(neoshell_t shell)
 #undef MIN_ARG_NUM
     if (!neocmd->args)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_create] Failed to create dynamic array for arguments");
+        NEO_LOG(ERROR, error_msg);
         free(neocmd);
         return NULL;
     }
@@ -363,6 +530,9 @@ bool neocmd_delete(neocmd_t *neocmd)
 {
     if (!neocmd || !neocmd->args)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_delete] Invalid neocmd or args pointer");
+        NEO_LOG(ERROR, error_msg);
         return false;
     }
 
@@ -378,6 +548,9 @@ bool neocmd_append_null(neocmd_t *neocmd, ...)
 {
     if (!neocmd || !neocmd->args)
     {
+        char error_msg[MAX_TEMP_STRLEN];
+        snprintf(error_msg, sizeof(error_msg), "[neocmd_append_null] Invalid neocmd or args pointer");
+        NEO_LOG(ERROR, error_msg);
         return false;
     }
 
@@ -391,6 +564,9 @@ bool neocmd_append_null(neocmd_t *neocmd, ...)
         strix_t *arg_strix = strix_create(arg);
         if (!arg_strix)
         {
+            char error_msg[MAX_TEMP_STRLEN];
+            snprintf(error_msg, sizeof(error_msg), "[neocmd_append_null] Failed to create strix for argument: %s", arg);
+            NEO_LOG(ERROR, error_msg);
             cleanup_arg_array(neocmd_args);
             va_end(args);
             return false;
@@ -398,6 +574,9 @@ bool neocmd_append_null(neocmd_t *neocmd, ...)
 
         if (!dyn_arr_append(neocmd_args, &arg_strix))
         {
+            char error_msg[MAX_TEMP_STRLEN];
+            snprintf(error_msg, sizeof(error_msg), "[neocmd_append_null] Failed to append argument to array: %s", arg);
+            NEO_LOG(ERROR, error_msg);
             APPEND_CLEANUP(neocmd_args);
         }
         arg = va_arg(args, const char *);
@@ -406,3 +585,5 @@ bool neocmd_append_null(neocmd_t *neocmd, ...)
     va_end(args); // finished extracting all variadic arguments; cleanup
     return true;
 }
+
+#undef MAX_TEMP_STRLEN

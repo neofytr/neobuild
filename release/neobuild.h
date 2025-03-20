@@ -45,7 +45,8 @@ typedef enum
 // check if the neo.c build C file has changed since the previous compilation of it to neo
 // (done by checking the modified date/time of neo.c; if this time comes after the last modified of neo.c, we need to rebuild neo from this new neo.c)
 
-bool neorebuild(const char *build_file);
+// buildneo, build.c and build should be in the same directory
+bool neorebuild(const char *build_file, char **argv);
 
 /**
  * Enum representing different shell types.
