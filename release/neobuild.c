@@ -44,7 +44,7 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
     if (!config_file_path || !config_num)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, "[%s] Arguments invalid", __func__);
+        snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
         NEO_LOG(ERROR, msg);
         return NULL;
     }
@@ -55,13 +55,162 @@ neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
     if (!config)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, "[%s] Config array allocation failed: %s", __func__, strerror(errno));
+        snprintf(msg, sizeof(msg), "[%s] Config array allocation failed: %s", __func__, strerror(errno));
         NEO_LOG(ERROR, msg);
         return NULL;
     }
+
+    size_t curr_cap = INIT_CONFIG_SIZE;
 #undef INIT_CONFIG_SIZE
 
-    size_t curr_len = 0;
+    size_t curr_index = 0;
+    strix_t *file = conv_file_to_strix(config_file_path);
+    if (!file)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] File conversion to strix failed", __func__);
+        NEO_LOG(ERROR, msg);
+        free(config);
+        return NULL;
+    }
+
+    strix_arr_t *arr = strix_split_by_delim(file, ';');
+    if (!arr)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Config parsing failed", __func__);
+        NEO_LOG(ERROR, msg);
+        free(config);
+        strix_free(file);
+        return NULL;
+    }
+
+    for (size_t index = 0; index < arr->len; index++)
+    {
+        strix_t *conf = arr->strix_arr[index];
+
+        size_t key_len = 0;
+        size_t value_len = 0;
+
+        bool found = false;
+
+        for (size_t counter = 0; counter < conf->len; counter++)
+        {
+            if (conf->str[counter] == '=')
+            {
+                found = true;
+            }
+
+            if (found)
+            {
+                value_len++;
+            }
+            else
+            {
+                key_len++;
+            }
+        }
+
+        if (!found)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Invalid Config-Value pair: " STRIX_FORMAT, __func__, STRIX_PRINT(conf));
+            NEO_LOG(ERROR, msg);
+            continue;
+        }
+
+        char *config_ = (char *)malloc(key_len + 1); // + 1 for null byte
+        if (!config_)
+        {
+            for (size_t i = 0; i < curr_index; i++)
+            {
+                free(config[i].config);
+                free(config[i].value);
+            }
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Config-Value pair allocation failed: %s", __func__, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            free(config);
+            strix_free(file);
+            strix_free_strix_arr(arr);
+            return NULL;
+        }
+
+        char *value = (char *)malloc(value_len + 1);
+        if (!value)
+        {
+            for (size_t i = 0; i < curr_index; i++)
+            {
+                free(config[i].config);
+                free(config[i].value);
+            }
+            char msg[MAX_TEMP_STRLEN];
+            free(config_);
+            snprintf(msg, sizeof(msg), "[%s] Config-Value pair allocation failed: %s", __func__, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            free(config);
+            strix_free(file);
+            strix_free_strix_arr(arr);
+            return NULL;
+        }
+
+        memcpy(config_, conf->str, key_len - 1); // -1 to exclude '='
+        config_[key_len - 1] = 0;
+
+        memcpy(value, conf->str + key_len, value_len - 1); // Start after '='
+        value[value_len - 1] = 0;
+
+        if (curr_index >= curr_cap)
+        {
+            size_t new_cap = curr_cap * 2;
+            neoconfig_t *temp = (neoconfig_t *)realloc(config, sizeof(neoconfig_t) * new_cap);
+            if (!temp)
+            {
+                char msg[MAX_TEMP_STRLEN];
+                snprintf(msg, sizeof(msg), "[%s] Config array reallocation failed: %s", __func__, strerror(errno));
+                NEO_LOG(ERROR, msg);
+                free(config_);
+                free(value);
+
+                // free already allocated entries
+                for (size_t i = 0; i < curr_index; i++)
+                {
+                    free(config[i].config);
+                    free(config[i].value);
+                }
+                free(config);
+                strix_free(file);
+                strix_free_strix_arr(arr);
+                return NULL;
+            }
+            config = temp;
+            curr_cap = new_cap;
+        }
+
+        config[curr_index].config = config_;
+        config[curr_index].value = value;
+        curr_index++;
+    }
+
+    *config_num = curr_index;
+
+    strix_free_strix_arr(arr);
+    strix_free(file);
+
+    if (!curr_index)
+    {
+        free(config);
+        return NULL;
+    }
+
+    neoconfig_t *final_config = (neoconfig_t *)realloc(config, sizeof(neoconfig_t) * curr_index);
+    if (!final_config)
+    {
+        // if realloc fails, the original block is still valid
+        return config;
+    }
+
+    return final_config;
 }
 
 bool neo_mkdir(const char *dir_path, mode_t dir_mode)
@@ -69,7 +218,7 @@ bool neo_mkdir(const char *dir_path, mode_t dir_mode)
     if (!dir_path)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, "[%s] Argument dir_path is invalid", __func__);
+        snprintf(msg, sizeof(msg), "[%s] Argument dir_path is invalid", __func__);
         NEO_LOG(ERROR, msg);
         return false;
     }
@@ -79,7 +228,7 @@ bool neo_mkdir(const char *dir_path, mode_t dir_mode)
         if (mkdir(dir_path, 0777) == -1)
         {
             char msg[MAX_TEMP_STRLEN];
-            snprintf(msg, "[%s] Creating dir %s failed", __func__, dir_path);
+            snprintf(msg, sizeof(msg), "[%s] Creating dir %s failed", __func__, dir_path);
             NEO_LOG(ERROR, msg);
             return false;
         }
@@ -89,7 +238,7 @@ bool neo_mkdir(const char *dir_path, mode_t dir_mode)
         if (mkdir(dir_path, dir_mode) == -1)
         {
             char msg[MAX_TEMP_STRLEN];
-            snprintf(msg, "[%s] Creating dir %s failed", __func__, dir_path);
+            snprintf(msg, sizeof(msg), "[%s] Creating dir %s failed", __func__, dir_path);
             NEO_LOG(ERROR, msg);
             return false;
         }
