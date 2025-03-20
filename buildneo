@@ -22,7 +22,7 @@ fi
 echo "Using compiler: $CC"
 
 # compile the provided .c file
-$CC "$SOURCE_FILE" neobuild/strix/binaries/strix.o neobuild/dynarr/src/dynarr.c neobuild/neobuild.c -o "$OUTPUT_FILE" -lm -O3 -march=native
+$CC "$SOURCE_FILE" release/strix/binaries/strix.o release/dynarr/src/dynarr.c release/neobuild.c -o "$OUTPUT_FILE" -lm -O3 -march=native
 
 if [ $? -eq 0 ]; then
     echo "Compilation successful: $OUTPUT_FILE"

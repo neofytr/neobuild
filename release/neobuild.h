@@ -6,8 +6,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-
-
 // for pid_t
 #include <sys/types.h>
 
@@ -26,8 +24,8 @@ typedef enum
  */
 typedef struct
 {
-    dyn_arr_t *args; /**< Dynamic array storing command arguments. */
-    neoshell_t shell;   /**< Shell type used to execute the command. */
+    dyn_arr_t *args;  /**< Dynamic array storing command arguments. */
+    neoshell_t shell; /**< Shell type used to execute the command. */
 } neocmd_t;
 
 /**
@@ -118,7 +116,7 @@ bool neocmd_run_sync(neocmd_t *neocmd, int *status, int *code, bool print_status
  *
  * @return `true` if the process was successfully waited on, `false` otherwise.
  */
-bool shell_wait(pid_t pid, int *status, int *code, bool should_print);
+bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print);
 
 /**
  * Appends arguments to a command structure.
@@ -142,5 +140,18 @@ bool neocmd_append_null(neocmd_t *neocmd, ...);
  * @return A dynamically allocated string containing the command representation.
  */
 const char *neocmd_render(neocmd_t *neocmd);
+
+#ifdef NEO_REMOVE_SUFFIX
+
+#define cmd_create neocmd_create
+#define cmd_delete neocmd_delete
+#define cmd_run_async neocmd_run_async
+#define cmd_run_sync neocmd_run_sync
+#define cmd_append neocmd_append
+#define cmd_append_null neocmd_append_null
+#define cmd_render neocmd_render
+#define shell_wait neoshell_wait
+
+#endif /* NEO_REMOVE_PREFIX */
 
 #endif /* NEOBUILD_H */

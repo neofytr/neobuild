@@ -83,7 +83,7 @@ const char *neocmd_render(neocmd_t *neocmd)
     return (const char *)str;
 }
 
-bool shell_wait(pid_t pid, int *status, int *code, bool should_print)
+bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
 {
     // check for invalid arguments
     if (pid < 0)
@@ -284,7 +284,7 @@ bool neocmd_run_sync(neocmd_t *neocmd, int *status, int *code, bool print_status
         return false;
     }
 
-    shell_wait(child, status, code, print_status_desc);
+    neoshell_wait(child, status, code, print_status_desc);
     return true;
 }
 
