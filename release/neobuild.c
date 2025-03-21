@@ -2,7 +2,7 @@
 #include "strix/header/strix.h"
 #include "neovec/neovec.h"
 
-// for pipe
+// for standard unix functions (like mkdir)
 #include <unistd.h>
 
 // for wait

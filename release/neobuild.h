@@ -11,30 +11,56 @@
 
 #include <stdio.h>
 
+/**
+ * Enum representing different compiler types that can be used.
+ */
 typedef enum
 {
-    GCC,
-    CLANG,
-    GLOBAL_DEFAULT,
+    GCC,            /**< GNU Compiler Collection */
+    CLANG,          /**< Clang compiler */
+    GLOBAL_DEFAULT, /**< Use the globally set default compiler */
 } neocompiler_t;
 
+/**
+ * Sets the global default compiler to be used when GLOBAL_DEFAULT is specified.
+ *
+ * @param compiler The compiler type to set as the global default.
+ */
 void neo_set_global_default_compiler(neocompiler_t compiler);
+
+/**
+ * Gets the current global default compiler setting.
+ *
+ * @return The currently set global default compiler.
+ */
 neocompiler_t neo_get_global_default_compiler();
 
+/**
+ * Enum representing different logging levels for the neo build system.
+ */
 typedef enum
 {
-    ERROR,
-    WARNING,
-    INFO,
-    DEBUG
+    ERROR,   /**< Error level for critical issues */
+    WARNING, /**< Warning level for potential issues */
+    INFO,    /**< Info level for general information */
+    DEBUG    /**< Debug level for detailed debugging information */
 } neolog_level_t;
 
+/**
+ * Structure representing a key-value configuration pair.
+ */
 typedef struct
 {
-    char *key;
-    char *value;
+    char *key;   /**< Configuration key */
+    char *value; /**< Configuration value */
 } neoconfig_t;
 
+/**
+ * Macro for logging messages with the specified log level.
+ *
+ * @param level The log level for the message (ERROR, WARNING, INFO, or DEBUG).
+ * @param msg The message to log.
+ */
 #define NEO_LOG(level, msg)                         \
     do                                              \
     {                                               \
@@ -196,18 +222,66 @@ bool neocmd_append_null(neocmd_t *neocmd, ...);
  */
 const char *neocmd_render(neocmd_t *neocmd);
 
+/**
+ * Checks if the build file has changed since the previous compilation and rebuilds if necessary.
+ *
+ * @param build_file Path to the build file to check.
+ * @param argv The command line arguments to pass to the rebuild process.
+ * @return true if a rebuild was performed successfully, false otherwise.
+ */
+bool neorebuild(const char *build_file, char **argv);
+
+/**
+ * Creates directories recursively (similar to mkdir -p).
+ *
+ * @param dir_path Path to the directory to create.
+ * @param mode Permission mode for the created directories.
+ * @return true if directories were created successfully, false otherwise.
+ */
 bool neo_mkdir(const char *dir_path, mode_t mode);
 
+/**
+ * Parses a configuration file into an array of key-value pairs.
+ *
+ * @param config_file_path Path to the configuration file to parse.
+ * @param config_arr_len Pointer to a size_t variable where the length of the resulting array will be stored.
+ * @return An array of neoconfig_t structures containing the parsed configuration.
+ */
 neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_arr_len);
 
+/**
+ * Frees the memory allocated for a configuration array.
+ *
+ * @param config_arr The configuration array to free.
+ * @param config_arr_len The length of the configuration array.
+ * @return true if the memory was successfully freed, false otherwise.
+ */
 bool neo_free_config(neoconfig_t *config_arr, size_t config_arr_len);
 
+/**
+ * Parses configuration options from command line arguments.
+ *
+ * @param argv The command line arguments to parse.
+ * @param config_arr_len Pointer to a size_t variable where the length of the resulting array will be stored.
+ * @return An array of neoconfig_t structures containing the parsed configuration.
+ */
 neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
 
 // if output is NULL, the name of the output object file is the same as the source file (with removed .c)
 // and is placed in the same directory and the source file
 // if the compiler flags are NULL, the only compiler flag used is "-c", which specifies compilation to object files
 // will compile only if the output file doesn't exist or if the object file is older than the source file
+
+/**
+ * Compiles a source file to an object file using the specified compiler.
+ *
+ * @param compiler The compiler to use for compilation.
+ * @param source Path to the source file to compile.
+ * @param output Path to the output object file (can be NULL to use default naming).
+ * @param compiler_flags Additional compiler flags to use (can be NULL to use defaults).
+ * @param force_compilation If true, forces compilation even if the object file is newer than the source.
+ * @return true if compilation was successful, false otherwise.
+ */
 bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, bool force_compilation);
 
 #ifdef NEO_REMOVE_PREFIX
