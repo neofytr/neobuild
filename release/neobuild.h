@@ -120,6 +120,8 @@ typedef struct
  */
 #define neocmd_append(neocmd_ptr, ...) neocmd_append_null((neocmd_ptr), __VA_ARGS__, NULL)
 
+#define neo_link(compiler, executable, linker_flags, forced_linking, ...) neo_link_null((compiler), (executable), (linker_flags), (forced_linking), __VA_ARGS__, NULL)
+
 /**
  * Generates a string representation of a label, ensuring compatibility with filenames containing whitespaces.
  *
@@ -283,6 +285,8 @@ neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
  * @return true if compilation was successful, false otherwise.
  */
 bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, bool force_compilation);
+
+bool neo_link_null(neocompiler_t compiler, const char *executable, const char *linker_flags, bool forced_linking, ...);
 
 #ifdef NEO_REMOVE_PREFIX
 
