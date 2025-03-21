@@ -158,6 +158,40 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         output_name[index] = 0; // null terminate
     }
 
+    struct stat source_stat;
+    if (stat(source, &source_stat) == -1)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        if (errno = ENOENT)
+        {
+            snprintf(msg, sizeof(msg), "[%s] Source file %s couldn't be found: %s", __func__, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            return false;
+        }
+
+        snprintf(msg, sizeof(msg), "[%s] Source file %s info couldn't be found via stat: %s", __func__, strerror(errno));
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    struct stat output_stat;
+    if (stat(output_name, &output_stat) == -1)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        if (errno = ENOENT)
+        {
+            snprintf(msg, sizeof(msg), "[%s] Output file %s couldn't be found: %s", __func__, strerror(errno));
+            NEO_LOG(INFO, msg);
+            snprintf(msg, sizeof(msg), "[%s] The output file %s will be created", __func__, output_name);
+            NEO_LOG(INFO, msg);
+            return false;
+        }
+
+        snprintf(msg, sizeof(msg), "[%s] Output file %s info couldn't be found via stat: %s", __func__, strerror(errno));
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
     neocmd_t *cmd = neocmd_create(SH);
     if (!cmd)
     {
