@@ -1,8 +1,8 @@
 # neobuild: A Lightweight C Build System
 
-NeoBuild is a flexible and lightweight build system for C projects, designed to simplify compilation processes and provide a clean interface for managing builds.
+neobuild is a flexible and lightweight build system for C projects, designed to simplify compilation processes and provide a clean interface for managing builds.
 
-Works currently only on POSIX-compliant systems including Linux
+Currently supports currently only POSIX-compliant systems including Linux
 
 ## Installation
 
@@ -34,6 +34,9 @@ int main(int argc, char **argv)
     
     // Compile main.c to an object file using GCC
     neo_compile_to_object_file(GCC, "main.c", NULL, NULL, true);
+
+    // Link with glibc to create main using GCC
+    neo_link(GCC, "main", NULL, true, "main.o");
     
     return EXIT_SUCCESS;
 }
@@ -92,6 +95,9 @@ bool neorebuild(const char *build_file, char **argv);
 bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, 
                                const char *output, const char *compiler_flags, 
                                bool force_compilation);
+
+// Link source files
+bool neo_link(neocompiler_t compiler, const char *executable, const char *linker_flags, bool forced_linking, ...);
 ```
 
 ### Configuration
