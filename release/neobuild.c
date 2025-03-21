@@ -116,7 +116,7 @@ neocompiler_t neo_get_global_default_compiler()
     return GLOBAL_DEFAULT_COMPILER;
 }
 
-bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags)
+bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, bool force_compilation)
 {
     if (!source)
     {
@@ -176,37 +176,41 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         return false;
     }
 
-    // check if the output file exists and is older than the source file
-    struct stat output_stat;
-    if (!stat(output_name, &output_stat))
+    // if there is no force compilation, do timestamp caching
+    if (!force_compilation)
     {
-        if (output_stat.st_mtime >= source_stat.st_mtime)
+        // check if the output file exists and is older than the source file
+        struct stat output_stat;
+        if (!stat(output_name, &output_stat))
         {
+            if (output_stat.st_mtime >= source_stat.st_mtime)
+            {
+                char msg[MAX_TEMP_STRLEN];
+                snprintf(msg, sizeof(msg), "[%s] Output file '%s' is up to date - skipping compilation", __func__, output_name);
+                NEO_LOG(INFO, msg);
+                if (should_free_output_name)
+                    free(output_name);
+                return true;
+            }
             char msg[MAX_TEMP_STRLEN];
-            snprintf(msg, sizeof(msg), "[%s] Output file '%s' is up to date - skipping compilation", __func__, output_name);
+            snprintf(msg, sizeof(msg), "[%s] Source file '%s' is newer than output file - recompiling", __func__, source);
             NEO_LOG(INFO, msg);
-            if (should_free_output_name)
-                free(output_name);
-            return true;
         }
-        char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Source file '%s' is newer than output file - recompiling", __func__, source);
-        NEO_LOG(INFO, msg);
-    }
-    else
-    {
-        if (errno != ENOENT)
+        else
         {
+            if (errno != ENOENT)
+            {
+                char msg[MAX_TEMP_STRLEN];
+                snprintf(msg, sizeof(msg), "[%s] Failed to check output file '%s': %s", __func__, output_name, strerror(errno));
+                NEO_LOG(ERROR, msg);
+                if (should_free_output_name)
+                    free(output_name);
+                return false;
+            }
             char msg[MAX_TEMP_STRLEN];
-            snprintf(msg, sizeof(msg), "[%s] Failed to check output file '%s': %s", __func__, output_name, strerror(errno));
-            NEO_LOG(ERROR, msg);
-            if (should_free_output_name)
-                free(output_name);
-            return false;
+            snprintf(msg, sizeof(msg), "[%s] Output file '%s' does not exist - will create", __func__, output_name);
+            NEO_LOG(INFO, msg);
         }
-        char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Output file '%s' does not exist - will create", __func__, output_name);
-        NEO_LOG(INFO, msg);
     }
 
     if (compiler == GLOBAL_DEFAULT)
@@ -225,13 +229,16 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         return false;
     }
 
+    // if compiler_flags are NULL, they will be skipped anyways since variable argument parsing stops at
+    // the first NULL argument
+    // we technically won't need the macro appending NULL at the end in that case
     switch (compiler)
     {
     case GCC:
-        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags ? compiler_flags : "");
+        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags);
         break;
     case CLANG:
-        neocmd_append(cmd, "clang -c", source, "-o", output_name, compiler_flags ? compiler_flags : "");
+        neocmd_append(cmd, "clang -c", source, "-o", output_name, compiler_flags);
         break;
     default:
     {

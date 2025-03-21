@@ -208,7 +208,7 @@ neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
 // and is placed in the same directory and the source file
 // if the compiler flags are NULL, the only compiler flag used is "-c", which specifies compilation to object files
 // will compile only if the output file doesn't exist or if the object file is older than the source file
-bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags);
+bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, bool force_compilation);
 
 #ifdef NEO_REMOVE_PREFIX
 
