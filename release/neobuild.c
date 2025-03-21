@@ -126,6 +126,12 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         return false;
     }
 
+    // display force compilation status
+    char force_msg[MAX_TEMP_STRLEN];
+    snprintf(force_msg, sizeof(force_msg), "[%s] Force compilation of %s %s",
+             __func__, source, force_compilation ? "enabled" : "disabled");
+    NEO_LOG(ERROR, force_msg);
+
     char *output_name = NULL;
     bool should_free_output_name = false;
 
