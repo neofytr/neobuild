@@ -121,84 +121,92 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
     if (!source)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Arguments invalid", __func__);
+        snprintf(msg, sizeof(msg), "[%s] Source path cannot be NULL", __func__);
         NEO_LOG(ERROR, msg);
         return false;
     }
 
-    size_t source_len = strlen(source);
-    char *output_name = (char *)output;
+    char *output_name = NULL;
+    bool should_free_output_name = false;
 
-    if (!output)
+    if (output)
     {
-        output_name = (char *)malloc((source_len + 1) * sizeof(char));
+        output_name = (char *)output;
+    }
+    else
+    {
+        size_t source_len = strlen(source);
+        output_name = (char *)malloc((source_len + 3) * sizeof(char));
         if (!output_name)
         {
             char msg[MAX_TEMP_STRLEN];
-            snprintf(msg, sizeof(msg), "[%s] Allocation for the output file name failed: %s", __func__, strerror(errno));
+            snprintf(msg, sizeof(msg), "[%s] Allocation for output filename failed: %s", __func__, strerror(errno));
             NEO_LOG(ERROR, msg);
             return false;
         }
+        should_free_output_name = true;
 
-        size_t index = 0;
-        for (index = 0; index < source_len; index++)
+        strcpy(output_name, source);
+        char *extension = strrchr(output_name, '.');
+        if (extension && strcmp(extension, ".c") == 0)
         {
-            if (index < source_len - 1 && source[index] == '.' && source[index + 1] == 'c')
-            {
-                output_name[index++] = '.';
-                output_name[index++] = 'o';
-                break;
-            }
-            else
-            {
-                output_name[index] = source[index];
-            }
+            strcpy(extension, ".o");
         }
-
-        output_name[index] = 0; // null terminate
+        else
+        {
+            strcat(output_name, ".o");
+        }
     }
 
     struct stat source_stat;
     if (stat(source, &source_stat) == -1)
     {
         char msg[MAX_TEMP_STRLEN];
-        if (errno = ENOENT)
+        if (errno == ENOENT)
         {
-            snprintf(msg, sizeof(msg), "[%s] Source file %s couldn't be found: %s", __func__, strerror(errno));
-            NEO_LOG(ERROR, msg);
-            return false;
+            snprintf(msg, sizeof(msg), "[%s] Source file '%s' not found", __func__, source);
         }
-
-        snprintf(msg, sizeof(msg), "[%s] Source file %s info couldn't be found via stat: %s", __func__, strerror(errno));
+        else
+        {
+            snprintf(msg, sizeof(msg), "[%s] Cannot access source file '%s': %s", __func__, source, strerror(errno));
+        }
         NEO_LOG(ERROR, msg);
+        if (should_free_output_name)
+            free(output_name);
         return false;
     }
 
+    // check if the output file exists and is older than the source file
     struct stat output_stat;
-    if (stat(output_name, &output_stat) == -1)
+    if (!stat(output_name, &output_stat))
     {
-        char msg[MAX_TEMP_STRLEN];
-        if (errno = ENOENT)
+        if (output_stat.st_mtime >= source_stat.st_mtime)
         {
-            snprintf(msg, sizeof(msg), "[%s] Output file %s couldn't be found: %s", __func__, strerror(errno));
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Output file '%s' is up to date - skipping compilation", __func__, output_name);
             NEO_LOG(INFO, msg);
-            snprintf(msg, sizeof(msg), "[%s] The output file %s will be created", __func__, output_name);
-            NEO_LOG(INFO, msg);
+            if (should_free_output_name)
+                free(output_name);
+            return true;
+        }
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Source file '%s' is newer than output file - recompiling", __func__, source);
+        NEO_LOG(INFO, msg);
+    }
+    else
+    {
+        if (errno != ENOENT)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Failed to check output file '%s': %s", __func__, output_name, strerror(errno));
+            NEO_LOG(ERROR, msg);
+            if (should_free_output_name)
+                free(output_name);
             return false;
         }
-
-        snprintf(msg, sizeof(msg), "[%s] Output file %s info couldn't be found via stat: %s", __func__, strerror(errno));
-        NEO_LOG(ERROR, msg);
-        return false;
-    }
-
-    neocmd_t *cmd = neocmd_create(SH);
-    if (!cmd)
-    {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Error creating neocmd object for compiling", __func__);
-        NEO_LOG(ERROR, msg);
-        return false;
+        snprintf(msg, sizeof(msg), "[%s] Output file '%s' does not exist - will create", __func__, output_name);
+        NEO_LOG(INFO, msg);
     }
 
     if (compiler == GLOBAL_DEFAULT)
@@ -206,29 +214,55 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         compiler = neo_get_global_default_compiler();
     }
 
-    switch (compiler)
-    {
-    case GCC:
-    {
-        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags);
-        break;
-    }
-    case CLANG:
-    {
-        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags);
-        break;
-    }
-    }
-
-    if (!neocmd_run_sync(cmd, NULL, NULL, false))
+    neocmd_t *cmd = neocmd_create(SH);
+    if (!cmd)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Error running the compile command", __func__);
+        snprintf(msg, sizeof(msg), "[%s] Failed to create command object", __func__);
         NEO_LOG(ERROR, msg);
+        if (should_free_output_name)
+            free(output_name);
         return false;
     }
 
-    return true;
+    switch (compiler)
+    {
+    case GCC:
+        neocmd_append(cmd, "gcc -c", source, "-o", output_name, compiler_flags ? compiler_flags : "");
+        break;
+    case CLANG:
+        neocmd_append(cmd, "clang -c", source, "-o", output_name, compiler_flags ? compiler_flags : "");
+        break;
+    default:
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Unsupported compiler type: %d", __func__, compiler);
+        NEO_LOG(ERROR, msg);
+        neocmd_destroy(cmd);
+        if (should_free_output_name)
+            free(output_name);
+        return false;
+    }
+    }
+
+    bool result = neocmd_run_sync(cmd, NULL, NULL, false);
+    if (!result)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Compilation failed for '%s'", __func__, source);
+        NEO_LOG(ERROR, msg);
+    }
+    else
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Successfully compiled '%s' to '%s'", __func__, source, output_name);
+        NEO_LOG(INFO, msg);
+    }
+
+    neocmd_destroy(cmd);
+    if (should_free_output_name)
+        free(output_name);
+    return result;
 }
 
 neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
