@@ -101,7 +101,6 @@ bool neo_link_null(neocompiler_t compiler, const char *executable, const char *l
             exec_exists = false;
             requires_linking = true;
 
-            char msg[MAX_TEMP_STRLEN];
             snprintf(msg, sizeof(msg), "[%s] Executable '%s' does not exist - will create", __func__, executable);
             NEO_LOG(INFO, msg);
         }
