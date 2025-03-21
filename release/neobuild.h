@@ -286,6 +286,13 @@ neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len);
  */
 bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, bool force_compilation);
 
+// links the provided object files with each other and with glibc (always) along with appending the linker flags provided to produce executable
+// the object files are provided to the linker in the order in which they are specified in the function
+// the linker flags are appended at the end in the order they are present in the linker_flags strig
+// the executable parameter is required
+// enabling forced linking prevents timestamp caching and always results in linking
+// disabling it results in linking only if any of the object files are newer than the executable provided (if it exists)
+// if the executable doesn't exist, forced_linking doesn't have any effect
 bool neo_link_null(neocompiler_t compiler, const char *executable, const char *linker_flags, bool forced_linking, ...);
 
 #ifdef NEO_REMOVE_PREFIX
