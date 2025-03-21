@@ -14,7 +14,7 @@ cd neobuild
 Include the header in your build file:
 
 ```c
-#include "neobuild.h"
+#include "release/neobuild.h"
 ```
 
 ## Quick Start
@@ -22,7 +22,7 @@ Include the header in your build file:
 Here's a simple example of how to use NeoBuild:
 
 ```c
-#include "neobuild.h"
+#include "release/neobuild.h"
 #include <stdio.h>
 
 int main(int argc, char **argv)
