@@ -7,7 +7,7 @@ NeoBuild is a flexible and lightweight build system for C projects, designed to 
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/neobuild.git
+git clone https://github.com/neofytr/neobuild.git
 cd neobuild
 ```
 
