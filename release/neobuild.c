@@ -238,7 +238,7 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Unsupported compiler type: %d", __func__, compiler);
         NEO_LOG(ERROR, msg);
-        neocmd_destroy(cmd);
+        neocmd_delete(cmd);
         if (should_free_output_name)
             free(output_name);
         return false;
