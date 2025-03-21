@@ -41,6 +41,177 @@ static inline void cleanup_arg_array(dyn_arr_t *arr)
         return false;           \
     } while (0)
 
+bool neo_link_null(neocompiler_t compiler, const char *executable, const char *linker_flags, bool forced_linking, ...)
+{
+    if (!executable)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] No executable name provided", __func__);
+        NEO_LOG(ERROR, msg);
+        return false;
+    }
+
+    struct
+    {
+        const char **items;
+        size_t count;
+        size_t capacity;
+    } object = NEOVEC_INIT; // neovec array to keep track of the passed object files
+
+    va_list args;                   // declare a va_list
+    va_start(args, forced_linking); // initialize with the last known fixed argument
+
+    const char *tmp = va_arg(args, const char *);
+    while (tmp)
+    {
+        neovec_append(&object, tmp);
+        tmp = va_arg(args, const char *);
+    }
+
+    va_end(args); // cleanup
+
+    if (!object.count)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] No object files provided", __func__);
+        NEO_LOG(ERROR, msg);
+        neovec_free(&object);
+        return false;
+    }
+
+    char force_msg[MAX_TEMP_STRLEN];
+    snprintf(force_msg, sizeof(force_msg), "[%s] Forced linking %s", __func__, forced_linking ? "enabled" : "disabled");
+    NEO_LOG(INFO, force_msg);
+
+    bool requires_linking = forced_linking;
+    bool exec_exists = true;
+    if (!forced_linking)
+    {
+        struct stat exec_stat;
+        if (stat(executable, &exec_stat) == -1)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            if (errno != ENOENT)
+            {
+                snprintf(msg, sizeof(msg), "[%s] Cannot access the executable file '%s': %s", __func__, executable, strerror(errno));
+                NEO_LOG(ERROR, msg);
+                neovec_free(&object);
+                return false;
+            }
+            exec_exists = false;
+            requires_linking = true;
+
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Executable '%s' does not exist - will create", __func__, executable);
+            NEO_LOG(INFO, msg);
+        }
+
+        struct stat temp;
+        const char **file;
+        neovec_foreach(const char *, file, &object)
+        {
+            if (stat(*file, &temp) == -1)
+            {
+                char msg[MAX_TEMP_STRLEN];
+                if (errno != ENOENT)
+                {
+                    snprintf(msg, sizeof(msg), "[%s] Cannot access the file '%s': %s", __func__, *file, strerror(errno));
+                    NEO_LOG(ERROR, msg);
+                    neovec_free(&object);
+                    return false;
+                }
+                else
+                {
+                    snprintf(msg, sizeof(msg), "[%s] The file '%s' does not exist: %s", __func__, *file, strerror(errno));
+                    NEO_LOG(ERROR, msg);
+                    neovec_free(&object);
+                    return false;
+                }
+            }
+
+            if (exec_exists && temp.st_mtime > exec_stat.st_mtime)
+            {
+                char msg[MAX_TEMP_STRLEN];
+                snprintf(msg, sizeof(msg), "[%s] The file '%s' is newer than the executable; Linking will be done", __func__, *file);
+                NEO_LOG(INFO, msg);
+                requires_linking = true;
+            }
+        }
+
+        if (exec_exists && !requires_linking)
+        {
+            char msg[MAX_TEMP_STRLEN];
+            snprintf(msg, sizeof(msg), "[%s] Executable '%s' is up to date - skipping linking", __func__, executable);
+            NEO_LOG(INFO, msg);
+            neovec_free(&object);
+            return true;
+        }
+    }
+
+    if (compiler == GLOBAL_DEFAULT)
+    {
+        compiler = neo_get_global_default_compiler();
+    }
+
+    neocmd_t *cmd = neocmd_create(SH);
+    if (!cmd)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Failed to create command object", __func__);
+        NEO_LOG(ERROR, msg);
+        neovec_free(&object);
+        return false;
+    }
+
+    switch (compiler)
+    {
+    case GCC:
+        neocmd_append(cmd, "gcc -o", executable);
+        break;
+    case CLANG:
+        neocmd_append(cmd, "clang -o", executable);
+        break;
+    default:
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Unsupported compiler type: %d", __func__, compiler);
+        NEO_LOG(ERROR, msg);
+        neocmd_delete(cmd);
+        neovec_free(&object);
+        return false;
+    }
+    }
+
+    const char **file;
+    neovec_foreach(const char *, file, &object)
+    {
+        neocmd_append(cmd, *file);
+    }
+
+    if (linker_flags)
+    {
+        neocmd_append(cmd, linker_flags);
+    }
+
+    bool result = neocmd_run_sync(cmd, NULL, NULL, false);
+    if (!result)
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Linking failed for '%s'", __func__, executable);
+        NEO_LOG(ERROR, msg);
+    }
+    else
+    {
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Successfully linked '%s'", __func__, executable);
+        NEO_LOG(INFO, msg);
+    }
+
+    neocmd_delete(cmd);
+    neovec_free(&object);
+    return result;
+}
+
 neoconfig_t *neo_parse_config_arg(char **argv, size_t *config_arr_len)
 {
     if (!argv || !config_arr_len)

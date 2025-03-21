@@ -113,9 +113,9 @@ typedef struct
  *     printf("%d\n", *num);
  * }
  */
-#define neovec_foreach(type_element, element_ptr, vector_ptr)                           \
-    for (type_element * (element_ptr) = (type_element *)(vector_ptr)->items;            \
-         (void **)(element_ptr) < (void **)((vector_ptr)->items + (vector_ptr)->count); \
+#define neovec_foreach(type_element, element_ptr, vector_ptr)       \
+    for (type_element * (element_ptr) = (vector_ptr)->items;        \
+         (element_ptr) < (vector_ptr)->items + (vector_ptr)->count; \
          (element_ptr)++)
 
 /**
