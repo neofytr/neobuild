@@ -259,7 +259,7 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         NEO_LOG(INFO, msg);
     }
 
-    neocmd_destroy(cmd);
+    neocmd_delete(cmd);
     if (should_free_output_name)
         free(output_name);
     return result;
