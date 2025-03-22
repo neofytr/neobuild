@@ -2,7 +2,7 @@
 
 neobuild is a flexible and lightweight build system for C projects, designed to simplify compilation processes and provide a clean interface for managing builds.
 
-Currently supports currently only POSIX-compliant systems including Linux
+Currently supports only POSIX-compliant systems including Linux
 
 ## Installation
 
