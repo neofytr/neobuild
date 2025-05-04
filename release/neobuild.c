@@ -170,6 +170,9 @@ bool neo_link_null(neocompiler_t compiler, const char *executable, const char *l
     case CLANG:
         neocmd_append(cmd, "clang -o", executable);
         break;
+    case LD:
+        neocmd_append(cmd, "ld -o", executable);  
+        break;
     default:
     {
         char msg[MAX_TEMP_STRLEN];
@@ -324,7 +327,7 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
 
         strcpy(output_name, source);
         char *extension = strrchr(output_name, '.');
-        if (extension && strcmp(extension, ".c") == 0)
+        if (extension)
         {
             strcpy(extension, ".o");
         }
@@ -415,6 +418,9 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
         break;
     case CLANG:
         neocmd_append(cmd, "clang -c", source, "-o", output_name, compiler_flags);
+        break;
+    case AS:
+        neocmd_append(cmd, "as -c", source, "-o", output_name, compiler_flags);
         break;
     default:
     {

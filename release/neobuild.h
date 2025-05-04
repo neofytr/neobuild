@@ -16,6 +16,8 @@
  */
 typedef enum
 {
+    LD, // the GNU linker
+    AS, // the GNU assembler
     GCC,            /**< GNU Compiler Collection */
     CLANG,          /**< Clang compiler */
     GLOBAL_DEFAULT, /**< Use the globally set default compiler */
