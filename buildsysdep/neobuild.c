@@ -171,7 +171,7 @@ bool neo_link_null(neocompiler_t compiler, const char *executable, const char *l
         neocmd_append(cmd, "clang -o", executable);
         break;
     case LD:
-        neocmd_append(cmd, "ld -o", executable);  
+        neocmd_append(cmd, "ld -o", executable);
         break;
     default:
     {
@@ -195,8 +195,9 @@ bool neo_link_null(neocompiler_t compiler, const char *executable, const char *l
         neocmd_append(cmd, linker_flags);
     }
 
-    bool result = neocmd_run_sync(cmd, NULL, NULL, false);
-    if (!result)
+    int status, code;
+    bool result = neocmd_run_sync(cmd, &status, &code, false);
+    if (result || code)
     {
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Linking failed for '%s'", __func__, executable);
@@ -289,6 +290,7 @@ neocompiler_t neo_get_global_default_compiler()
     return GLOBAL_DEFAULT_COMPILER;
 }
 
+// returns true if the compilation was successful, false otherwise
 bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, const char *output, const char *compiler_flags, bool force_compilation)
 {
     if (!source)
@@ -434,24 +436,40 @@ bool neo_compile_to_object_file(neocompiler_t compiler, const char *source, cons
     }
     }
 
-    bool result = neocmd_run_sync(cmd, NULL, NULL, false);
+    int status, code;
+    bool result = neocmd_run_sync(cmd, &status, &code, false);
     if (!result)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Compilation failed for '%s'", __func__, source);
+        snprintf(msg, sizeof(msg), "[%s] Shell creation for compilation failed\n", __func__);
         NEO_LOG(ERROR, msg);
     }
-    else
+
+    // the shell process has run, but we don't know if it
+    // ran the command we gave it correctly
+    // knowledge about it is in status and code
+
+    // the exit code of the compilation will be 0 for successfull
+
+    if (!code)
     {
         char msg[MAX_TEMP_STRLEN];
-        snprintf(msg, sizeof(msg), "[%s] Successfully compiled '%s' to '%s'", __func__, source, output_name);
+        snprintf(msg, sizeof(msg), "[%s] Compilation failed\n", __func__);
+        NEO_LOG(ERROR, msg);
+    }
+
+    if (result && code)
+    {
+        // successful compilation
+        char msg[MAX_TEMP_STRLEN];
+        snprintf(msg, sizeof(msg), "[%s] Compilation successful", __func__);
         NEO_LOG(INFO, msg);
     }
 
     neocmd_delete(cmd);
     if (should_free_output_name)
         free(output_name);
-    return result;
+    return (!code ? false : true); // return if the compilation was successful or not
 }
 
 neoconfig_t *neo_parse_config(const char *config_file_path, size_t *config_num)
@@ -895,6 +913,10 @@ bool neoshell_wait(pid_t pid, int *status, int *code, bool should_print)
         return false;
     }
 
+    // if the shell ran the command successfully, the exit
+    // status of this child shell process will be the exit
+    // status of the command it ran (due to -c)
+
     siginfo_t info;
     // wait for the child process with the given pid to exit or stop
     if (waitid(P_PID, (id_t)pid, &info, WEXITED | WSTOPPED) == -1)
@@ -1123,6 +1145,10 @@ pid_t neocmd_run_async(neocmd_t *neocmd)
     return -1;
 }
 
+// it returns true or false
+// to indicate whether the shell process ran
+// successfully or not, not about the command
+// the shell ran; info about that is in status, code etc
 bool neocmd_run_sync(neocmd_t *neocmd, int *status, int *code, bool print_status_desc)
 {
     // the parent and child share the same open file descriptions and file descriptors
