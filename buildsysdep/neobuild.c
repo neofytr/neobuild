@@ -702,7 +702,7 @@ bool neo_mkdir(const char *dir_path, mode_t dir_mode)
     return true;
 }
 
-bool neorebuild(const char *build_file_c, char **argv)
+bool neorebuild(const char *build_file_c, char **argv, int *argc)
 {
     if (!argv)
         return true;
@@ -712,7 +712,11 @@ bool neorebuild(const char *build_file_c, char **argv)
     while (*temp)
     {
         if (!strcmp(*temp, "--no-rebuild"))
+        {
+            (*argc)--; // no rebuild flag is not visible to the outside world and is used only internally and is the last argument
+                       // so, we decrease argc by one so as not to effect this new run of the build system
             return true;
+        }
         temp++;
     }
 
@@ -800,7 +804,7 @@ bool neorebuild(const char *build_file_c, char **argv)
             return false;
         }
 
-        neocmd_append(neo, "./neo --no-rebuild");
+        neocmd_append(neo, "./neo");
 
         char **arg_ptr = argv;
         arg_ptr++; // skip program name
@@ -809,6 +813,8 @@ bool neorebuild(const char *build_file_c, char **argv)
             neocmd_append(neo, *arg_ptr);
             arg_ptr++;
         }
+
+        neocmd_append(neo, "--no-rebuild");
 
         if (!neocmd_run_sync(neo, NULL, NULL, false))
         {
