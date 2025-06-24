@@ -197,7 +197,7 @@ bool neo_link_null(neocompiler_t compiler, const char *executable, const char *l
 
     int status, code;
     bool result = neocmd_run_sync(cmd, &status, &code, false);
-    if (result || code)
+    if (!result && !code)
     {
         char msg[MAX_TEMP_STRLEN];
         snprintf(msg, sizeof(msg), "[%s] Linking failed for '%s'", __func__, executable);

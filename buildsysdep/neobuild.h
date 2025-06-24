@@ -90,7 +90,7 @@ typedef struct
 // (done by checking the modified date/time of neo.c; if this time comes after the last modified of neo.c, we need to rebuild neo from this new neo.c)
 
 // buildneo, build.c and build should be in the same directory
-bool neorebuild(const char *build_file, char **argv);
+bool neorebuild(const char *build_file, char **argv, int *argc);
 
 /**
  * Enum representing different shell types.
@@ -233,7 +233,7 @@ const char *neocmd_render(neocmd_t *neocmd);
  * @param argv The command line arguments to pass to the rebuild process.
  * @return true if a rebuild was performed successfully, false otherwise.
  */
-bool neorebuild(const char *build_file, char **argv);
+bool neorebuild(const char *build_file, char **argv, int *argc);
 
 /**
  * Creates directories recursively (similar to mkdir -p).
