@@ -807,10 +807,13 @@ bool neorebuild(const char *build_file_c, char **argv, int *argc)
         neocmd_append(neo, "./neo");
 
         char **arg_ptr = argv;
+        char buf[2048] = {0};
         arg_ptr++; // skip program name
         while (*arg_ptr)
         {
-            neocmd_append(neo, *arg_ptr);
+            char *str = *arg_ptr;
+            snprintf(buf, sizeof(buf) - 1, "\"%s\"", str);
+            neocmd_append(neo, buf);
             arg_ptr++;
         }
 
